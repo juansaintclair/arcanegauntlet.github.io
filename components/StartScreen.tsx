@@ -1,9 +1,11 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { PlayerClass } from '../types';
 import { PlayerIcon } from './Icons';
 
 interface StartScreenProps {
-  onSelectClass: (playerClass: PlayerClass) => Promise<void>;
+  onStartGame: (playerClass: PlayerClass, name: string) => void;
+  onShowLeaderboard: () => void;
 }
 
 const ClassCard: React.FC<{title: string, description: string, stats: string, playerClass: PlayerClass, onClick: () => void}> = ({ title, description, stats, playerClass, onClick }) => (
@@ -23,29 +25,62 @@ const ClassCard: React.FC<{title: string, description: string, stats: string, pl
 );
 
 
-const StartScreen: React.FC<StartScreenProps> = ({ onSelectClass }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onShowLeaderboard }) => {
+  const [playerName, setPlayerName] = useState('');
+  const [error, setError] = useState('');
+
+  const handleStart = (playerClass: PlayerClass) => {
+    const trimmedName = playerName.trim();
+    if (trimmedName.length < 3 || trimmedName.length > 20) {
+        setError('Name must be between 3 and 20 characters.');
+        return;
+    }
+    setError('');
+    onStartGame(playerClass, trimmedName);
+  };
+
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-center p-4">
       <h1 className="text-6xl font-bold text-sky-400 mb-4 tracking-wider">Arcane Gauntlet</h1>
-      <p className="text-xl text-slate-300 mb-8 max-w-2xl">
-        Choose your path. An ever-changing dungeon awaits.
+      <p className="text-xl text-slate-300 mb-6 max-w-2xl">
+        Enter your name, choose your path, and etch your legend.
       </p>
-      <div className="flex flex-col md:flex-row gap-8">
+
+      <div className="mb-6 w-full max-w-md">
+          <input
+            type="text"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            placeholder="Enter your name"
+            maxLength={20}
+            className="w-full px-4 py-3 bg-slate-800 border-2 border-slate-600 rounded-lg text-center text-xl text-white focus:outline-none focus:border-sky-500 transition-colors"
+          />
+          {error && <p className="text-red-400 mt-2">{error}</p>}
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-8 mb-8">
         <ClassCard 
             title="Warrior"
             description="A master of offense, carving through foes with raw power."
             stats="Attack: 5 | Defense: 2"
             playerClass={PlayerClass.WARRIOR}
-            onClick={() => onSelectClass(PlayerClass.WARRIOR)}
+            onClick={() => handleStart(PlayerClass.WARRIOR)}
         />
         <ClassCard 
             title="Guardian"
             description="A stalwart defender, weathering blows that would fell lesser adventurers."
             stats="Attack: 2 | Defense: 5"
             playerClass={PlayerClass.GUARDIAN}
-            onClick={() => onSelectClass(PlayerClass.GUARDIAN)}
+            onClick={() => handleStart(PlayerClass.GUARDIAN)}
         />
       </div>
+
+      <button
+        onClick={onShowLeaderboard}
+        className="px-8 py-3 bg-sky-700 text-white font-bold text-xl rounded-lg hover:bg-sky-600 transition-colors duration-300 transform hover:scale-105"
+      >
+        View Leaderboard
+      </button>
     </div>
   );
 };

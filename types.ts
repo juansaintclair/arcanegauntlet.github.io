@@ -3,13 +3,17 @@ export enum TileType {
   FLOOR,
   WALL,
   STAIRS,
+  LOCKED_DOOR,
 }
+
+export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
 export enum GameState {
   START_SCREEN,
   PLAYING,
   GAME_OVER,
   GENERATING,
+  LEADERBOARD,
 }
 
 export enum PlayerClass {
@@ -21,6 +25,8 @@ export enum ItemType {
     ATTACK_BOOST,
     DEFENSE_BOOST,
     HEALTH_POTION,
+    KEY,
+    STEP_BOOST,
 }
 
 export interface Tile {
@@ -45,11 +51,17 @@ export interface Item {
 }
 
 export interface Player extends Position {
+  name: string;
   hp: number;
   maxHp: number;
   attack: number;
   defense: number;
   playerClass: PlayerClass;
+  keysHeld: number;
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+  steps: number;
 }
 
 export interface Monster extends Position {
@@ -81,4 +93,12 @@ export interface ProceduralMonster {
 export interface LevelGenerationResponse {
     theme: string;
     monsters: ProceduralMonster[];
+}
+
+export interface LeaderboardEntry {
+    id: string;
+    name: string;
+    floor: number;
+    time: number; // in seconds
+    createdAt: number;
 }

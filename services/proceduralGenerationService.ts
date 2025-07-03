@@ -1,5 +1,4 @@
 import { LevelGenerationResponse, ProceduralMonster } from '../types';
-import { generateLevelWithAI } from './geminiService';
 
 // Fallback static generation logic
 const themes = {
@@ -26,8 +25,8 @@ const spriteTypes = Object.keys(monsterTemplates) as MonsterSpriteType[];
 
 const getRandomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
-const generateFallbackContent = (isBossLevel: boolean): LevelGenerationResponse => {
-    console.warn(`Falling back to static procedural generation. Boss level: ${isBossLevel}`);
+const generateProceduralContent = (isBossLevel: boolean): LevelGenerationResponse => {
+    console.log(`Using procedural generation. Boss level: ${isBossLevel}`);
     
     if (isBossLevel) {
         const arena = getRandomElement(themes.bossArenas);
@@ -77,24 +76,7 @@ const generateFallbackContent = (isBossLevel: boolean): LevelGenerationResponse 
 };
 
 
-export const generateLevelContent = async (isBossLevel: boolean): Promise<LevelGenerationResponse> => {
-    try {
-        const aiResponse = await generateLevelWithAI(isBossLevel);
-        return aiResponse;
-    } catch (error: any) {
-        // This robust error handling gracefully catches issues from the API proxy
-        // (like quota limits, server errors, or network issues) and falls back.
-        const isQuotaError = error?.error?.status === 'RESOURCE_EXHAUSTED' || error?.error?.code === 429;
-        
-        if (isQuotaError) {
-            console.warn(
-                "AI quota has been reached. This is normal after many uses.\n" +
-                "The game will now use its built-in generator, so the adventure continues!"
-            );
-        } else {
-            console.error("An unexpected AI error occurred, using fallback content.", error);
-        }
-        
-        return generateFallbackContent(isBossLevel);
-    }
+export const generateLevelContent = (isBossLevel: boolean): LevelGenerationResponse => {
+    // The AI call has been removed. We now directly and reliably call the procedural generator.
+    return generateProceduralContent(isBossLevel);
 };

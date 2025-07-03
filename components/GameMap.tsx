@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tile, Player, Monster, TileType, Position, Item, PlayerClass } from '../types';
-import { PlayerIcon, MonsterIcon, StairsIcon, ItemIcon } from './Icons';
+import { PlayerIcon, MonsterIcon, StairsIcon, ItemIcon, DoorIcon } from './Icons';
 import { MAP_WIDTH, MAP_HEIGHT } from '../constants';
 
 interface GameMapProps {
@@ -27,6 +27,8 @@ const getTileClass = (tile: Tile): string => {
       case TileType.FLOOR:
       case TileType.STAIRS:
         return 'bg-slate-700'; // Dark, but clearly walkable path
+      case TileType.LOCKED_DOOR:
+        return 'bg-amber-900';
       default:
         return 'bg-black';
     }
@@ -39,6 +41,8 @@ const getTileClass = (tile: Tile): string => {
     case TileType.FLOOR:
     case TileType.STAIRS:
       return 'bg-slate-400'; // Brightest for walkable area in sight
+    case TileType.LOCKED_DOOR:
+      return 'bg-amber-800';
     default:
         return 'bg-black';
   }
@@ -57,7 +61,7 @@ const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items,
     const monster = monsterPositions.get(`${x},${y}`);
     const item = itemPositions.get(`${x},${y}`);
 
-    // Render priority: Player > Monster > Item > Stairs
+    // Render priority: Player > Monster > Item > Scenery
     if (player.x === x && player.y === y) return <PlayerIcon playerClass={player.playerClass} />;
 
     if (monster) {
@@ -80,9 +84,12 @@ const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items,
         return <ItemIcon symbol={item.symbol} type={item.type} />;
     }
     
-    // Correctly render stairs only if the tile type is STAIRS
     if (map[y][x].type === TileType.STAIRS) {
         return <StairsIcon />;
+    }
+
+    if (map[y][x].type === TileType.LOCKED_DOOR) {
+        return <DoorIcon />;
     }
 
     return null;

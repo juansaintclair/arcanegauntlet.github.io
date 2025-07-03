@@ -1,12 +1,13 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile } from './types';
+import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction } from './types';
 import { useGameInput } from './hooks/useGameInput';
 import { generateDungeon } from './services/dungeonService';
 import { generateLevelContent } from './services/proceduralGenerationService';
 import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
 import GameContainer from './components/GameContainer';
+import LeaderboardScreen from './components/LeaderboardScreen';
 import { MAP_WIDTH, MAP_HEIGHT } from './constants';
 import { audioService } from './services/audioService';
 
@@ -20,6 +21,27 @@ const App: React.FC = () => {
     const [isMuted, setIsMuted] = useState(false);
     const [desktopLayout, setDesktopLayout] = useState<'horizontal' | 'vertical'>('horizontal');
     const [isDpadVisible, setIsDpadVisible] = useState(true);
+    const [dpadPosition, setDpadPosition] = useState<'left' | 'right'>('right');
+    const [elapsedTime, setElapsedTime] = useState(0);
+    const timerRef = React.useRef<number | null>(null);
+
+    const requiredKeys = gameData ? 1 + Math.floor((dungeonLevel - 1) / 5) : 1;
+
+    useEffect(() => {
+        if (gameState === GameState.PLAYING) {
+            timerRef.current = window.setInterval(() => {
+                setElapsedTime(prev => prev + 1);
+            }, 1000);
+        } else {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
+        }
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [gameState]);
 
     useEffect(() => {
         if (gameState === GameState.PLAYING) {
@@ -49,9 +71,65 @@ const App: React.FC = () => {
     const addMessage = useCallback((msg: string) => {
         setMessages(prev => [...prev.slice(-10), msg]);
     }, []);
+    
+    const submitScore = useCallback(async (player: Player) => {
+        try {
+            await fetch('/api/leaderboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: player.name,
+                    floor: dungeonLevel,
+                    time: elapsedTime,
+                }),
+            });
+        } catch (error) {
+            console.error('Failed to submit score:', error);
+            addMessage("Error: Could not submit score to leaderboard.");
+        }
+    }, [dungeonLevel, elapsedTime, addMessage]);
+    
+    const handleGameOver = useCallback((message: string) => {
+        audioService.play('gameOver');
+        setGameState(GameState.GAME_OVER);
+        addMessage(message);
+        if (gameDataRef.current?.player) {
+            submitScore(gameDataRef.current.player);
+        }
+    }, [addMessage, submitScore]);
+
+    const handleXpGain = useCallback((player: Player, xpGained: number): Player => {
+        let updatedPlayer = { ...player, xp: player.xp + xpGained };
+        if (xpGained > 0) {
+            addMessage(`You gained ${xpGained} XP.`);
+        }
+
+        while (updatedPlayer.xp >= updatedPlayer.xpToNextLevel) {
+            audioService.play('levelUp');
+            updatedPlayer.xp -= updatedPlayer.xpToNextLevel;
+            updatedPlayer.level += 1;
+            
+            if (updatedPlayer.playerClass === PlayerClass.WARRIOR) {
+                updatedPlayer.attack += 2;
+                updatedPlayer.defense += 1;
+            } else {
+                updatedPlayer.attack += 1;
+                updatedPlayer.defense += 2;
+            }
+            
+            const hpIncrease = 10;
+            updatedPlayer.maxHp += hpIncrease;
+            const healAmount = Math.floor(updatedPlayer.maxHp * 0.25);
+            updatedPlayer.hp = Math.min(updatedPlayer.maxHp, updatedPlayer.hp + healAmount);
+            
+            addMessage(`LEVEL UP! You are now level ${updatedPlayer.level}. Stats increased!`);
+            updatedPlayer.xpToNextLevel = Math.floor(updatedPlayer.xpToNextLevel * 1.5);
+        }
+        return updatedPlayer;
+    }, [addMessage]);
 
     const updateFogOfWar = useCallback((center: Position, map: GameData['map']) => {
-        const visionRadius = 6; // Reduced vision radius for more challenge
+        const visionRadius = 6;
         const newMap = map.map(row => row.map(tile => ({...tile, visible: false})));
 
         for (let y = 0; y < MAP_HEIGHT; y++) {
@@ -61,7 +139,6 @@ const App: React.FC = () => {
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
                 if (distance < visionRadius) {
-                    // Line of sight check
                     let isBlocked = false;
                     for (let i = 0; i < distance; i++) {
                         const checkX = Math.round(center.x + (dx/distance) * i);
@@ -81,41 +158,41 @@ const App: React.FC = () => {
         return newMap;
     }, []);
     
-    const startNewGame = useCallback(async (playerClass: PlayerClass) => {
+    const startNewGame = useCallback((playerClass: PlayerClass, playerName: string) => {
         setGameState(GameState.GENERATING);
         setDungeonLevel(1);
         setMessages([]);
         setSelectedMonster(null);
+        setElapsedTime(0);
 
         const initialStats = playerClass === PlayerClass.WARRIOR
-            ? { attack: 5, defense: 2, hp: 80, maxHp: 80 } // Rebalanced Warrior stats
+            ? { attack: 5, defense: 2, hp: 80, maxHp: 80 }
             : { attack: 2, defense: 5, hp: 120, maxHp: 120 };
         
-        const className = playerClass === PlayerClass.WARRIOR ? "Warrior" : "Guardian";
-        addMessage(`Welcome, ${className}. Your journey begins.`);
+        addMessage(`Welcome, ${playerName}. Your journey begins.`);
 
-        try {
-            const { theme, monsters: generatedMonsters } = await generateLevelContent(false);
-            setLevelTheme(theme);
-            addMessage(`You enter a level known as: ${theme}`);
-            
-            let { map, monsters, stairs, items, startingPosition } = generateDungeon(1, generatedMonsters, false);
-            
-            const player: Player = {
-                ...startingPosition,
-                ...initialStats,
-                playerClass,
-            };
+        const { theme, monsters: generatedMonsters } = generateLevelContent(false);
+        setLevelTheme(theme);
+        addMessage(`You enter a level known as: ${theme}`);
+        
+        let { map, monsters, stairs, items, startingPosition } = generateDungeon(1, generatedMonsters, false);
+        
+        const player: Player = {
+            name: playerName,
+            ...startingPosition,
+            ...initialStats,
+            playerClass,
+            keysHeld: 0,
+            level: 1,
+            xp: 0,
+            xpToNextLevel: 100,
+            steps: 250,
+        };
 
-            map = updateFogOfWar(player, map);
+        map = updateFogOfWar(player, map);
 
-            setGameData({ map, player, monsters, stairs, items });
-            setGameState(GameState.PLAYING);
-        } catch (error) {
-            console.error("Failed to start new game:", error);
-            addMessage("Error: Could not generate the dungeon. Please try again.");
-            setGameState(GameState.START_SCREEN);
-        }
+        setGameData({ map, player, monsters, stairs, items });
+        setGameState(GameState.PLAYING);
     }, [addMessage, updateFogOfWar]);
     
     const gameDataRef = React.useRef(gameData);
@@ -124,6 +201,11 @@ const App: React.FC = () => {
     }, [gameData]);
 
     const processTurn = useCallback((playerState: Player, monsterState: Monster[], itemState: Item[], newMap?: Tile[][]) => {
+        if (playerState.steps < 0) {
+             handleGameOver("You ran out of energy and collapsed.");
+             return;
+        }
+
         const playerAfterMonsterAttacks = {...playerState};
         const currentMap = newMap || gameDataRef.current!.map;
 
@@ -133,8 +215,8 @@ const App: React.FC = () => {
             const distance = Math.sqrt(dx * dx + dy * dy);
             let newMonsterPos = { x: monster.x, y: monster.y };
 
-            if (distance < 8) { // AI activation range
-                if (distance < 1.5) { // Attack
+            if (distance < 8) {
+                if (distance < 1.5) {
                     const monsterDamage = Math.max(1, monster.attack - playerState.defense);
                     if (monsterDamage > 0) {
                         playerAfterMonsterAttacks.hp -= monsterDamage;
@@ -143,7 +225,7 @@ const App: React.FC = () => {
                     } else {
                         addMessage(`The ${monster.name}'s attack glances off your armor.`);
                     }
-                } else { // Move
+                } else {
                     const nextPosOptions = [];
                     if (Math.sign(dx) !== 0) nextPosOptions.push({x: monster.x + Math.sign(dx), y: monster.y});
                     if (Math.sign(dy) !== 0) nextPosOptions.push({x: monster.x, y: monster.y + Math.sign(dy)});
@@ -173,13 +255,11 @@ const App: React.FC = () => {
         });
 
         if (playerAfterMonsterAttacks.hp <= 0) {
-            audioService.play('gameOver');
-            setGameState(GameState.GAME_OVER);
-            addMessage("You have been defeated.");
+            handleGameOver("You have been defeated.");
         }
-    }, [addMessage, updateFogOfWar]);
+    }, [addMessage, updateFogOfWar, handleGameOver]);
 
-    const advanceLevel = useCallback(async () => {
+    const advanceLevel = useCallback(() => {
         audioService.play('stairs');
         const nextLevel = dungeonLevel + 1;
         const isBossLevel = nextLevel % 5 === 0;
@@ -187,38 +267,35 @@ const App: React.FC = () => {
         setDungeonLevel(nextLevel);
         setGameState(GameState.GENERATING);
         setSelectedMonster(null);
-        addMessage(`You descend to level ${nextLevel}...`);
+        addMessage(`You descend to floor ${nextLevel}...`);
         
-        const currentPlayer = gameDataRef.current!.player;
+        let currentPlayer = gameDataRef.current!.player;
 
-        try {
-            if (isBossLevel) {
-                addMessage("You feel a dreadful presence...");
-            }
-            const { theme, monsters: generatedMonsters } = await generateLevelContent(isBossLevel);
-            setLevelTheme(theme);
-            addMessage(`This place feels different... like a ${theme}`);
-            let { map, monsters, stairs, items, startingPosition } = generateDungeon(nextLevel, generatedMonsters, isBossLevel);
-            
-            const newPlayer = { ...currentPlayer, ...startingPosition };
-            
-            // Level up bonus!
-            newPlayer.maxHp += 10;
-            // Restore 50% of max HP on level up, not a full heal.
-            const healAmount = Math.floor(newPlayer.maxHp / 2);
-            newPlayer.hp = Math.min(newPlayer.maxHp, currentPlayer.hp + healAmount);
-            addMessage("You feel renewed. Max HP up, some health restored.");
-
-
-            map = updateFogOfWar(newPlayer, map);
-            setGameData({ map, player: newPlayer, monsters, stairs, items });
-            setGameState(GameState.PLAYING);
-        } catch (error) {
-            console.error("Failed to advance level:", error);
-            addMessage("Error: The path ahead is blocked. Returning to safety.");
-            setGameState(GameState.PLAYING); // Revert to current level
+        if (isBossLevel) {
+            addMessage("You feel a dreadful presence...");
         }
-    }, [dungeonLevel, addMessage, updateFogOfWar]);
+        const { theme, monsters: generatedMonsters } = generateLevelContent(isBossLevel);
+        setLevelTheme(theme);
+        addMessage(`This place feels different... like a ${theme}`);
+        let { map, monsters, stairs, items, startingPosition } = generateDungeon(nextLevel, generatedMonsters, isBossLevel);
+        
+        let newPlayer = { ...currentPlayer, ...startingPosition, keysHeld: 0 };
+        
+        const healAmount = Math.floor(newPlayer.maxHp * 0.5);
+        newPlayer.hp = Math.min(newPlayer.maxHp, currentPlayer.hp + healAmount);
+        
+        const stepBonus = 100 + Math.floor(dungeonLevel / 5) * 25;
+        newPlayer.steps = currentPlayer.steps + stepBonus;
+        addMessage(`You feel renewed as you descend. (+${stepBonus} steps)`);
+        
+        const xpBonus = 50 * dungeonLevel;
+        newPlayer = handleXpGain(newPlayer, xpBonus);
+
+
+        map = updateFogOfWar(newPlayer, map);
+        setGameData({ map, player: newPlayer, monsters, stairs, items });
+        setGameState(GameState.PLAYING);
+    }, [dungeonLevel, addMessage, updateFogOfWar, handleXpGain]);
 
     const handlePlayerMove = useCallback((dx: number, dy: number) => {
         if (!gameDataRef.current || gameState !== GameState.PLAYING) return;
@@ -235,16 +312,20 @@ const App: React.FC = () => {
         
         const monsterAtNewPos = monsters.find(m => m.x === newX && m.y === newY);
         if (monsterAtNewPos) {
-            const playerDamage = Math.max(1, player.attack - 0); // Monster defense not implemented
+            const playerDamage = Math.max(1, player.attack - 0);
             const newMonsterHp = monsterAtNewPos.hp - playerDamage;
             addMessage(`You attack the ${monsterAtNewPos.name} for ${playerDamage} damage.`);
             audioService.play('attack');
             
-            const newMonsters = monsters.map(m => m.id === monsterAtNewPos.id ? {...m, hp: newMonsterHp} : m).filter(m => m.hp > 0);
+            const damagedMonsters = monsters.map(m => m.id === monsterAtNewPos.id ? {...m, hp: newMonsterHp} : m);
             let mapForNextTurn;
+            let playerForNextTurn = { ...player, steps: player.steps - 1 };
 
             if (newMonsterHp <= 0) {
                 addMessage(`You defeated the ${monsterAtNewPos.name}!`);
+                const xpGained = Math.floor(10 + monsterAtNewPos.maxHp / 4 + monsterAtNewPos.attack * 2);
+                playerForNextTurn = handleXpGain(playerForNextTurn, xpGained);
+
                 if (monsterAtNewPos.isBoss) {
                     addMessage("The way forward is revealed!");
                     const { map, stairs } = gameDataRef.current!;
@@ -253,7 +334,22 @@ const App: React.FC = () => {
                     mapForNextTurn = mapCopy;
                 }
             }
-            processTurn(player, newMonsters, items, mapForNextTurn);
+            const livingMonsters = damagedMonsters.filter(m => m.hp > 0);
+            processTurn(playerForNextTurn, livingMonsters, items, mapForNextTurn);
+            return;
+        }
+
+        if (map[newY][newX].type === TileType.LOCKED_DOOR) {
+            if (player.keysHeld >= requiredKeys) {
+                addMessage(`You use ${requiredKeys} key(s) and the door unlocks.`);
+                audioService.play('stairs');
+                const newMap = map.map(row => row.map(tile => ({...tile})));
+                newMap[newY][newX].type = TileType.FLOOR;
+                const updatedPlayer = { ...player, x: newX, y: newY, keysHeld: 0, steps: player.steps - 1 };
+                processTurn(updatedPlayer, monsters, items, newMap);
+            } else {
+                addMessage(`The door is locked. It requires ${requiredKeys} key(s).`);
+            }
             return;
         }
         
@@ -264,39 +360,46 @@ const App: React.FC = () => {
             }
         }
 
-
-        let newPlayer = { ...player, x: newX, y: newY };
+        let newPlayer = { ...player, x: newX, y: newY, steps: player.steps - 1 };
         let newItems = [...items];
         const itemIndex = items.findIndex(i => i.position.x === newX && i.position.y === newY);
 
         if (itemIndex > -1) {
             const item = items[itemIndex];
             audioService.play('pickup');
-            addMessage(`You picked up: ${item.name}. ${item.description}`);
+            addMessage(`You picked up: ${item.name}.`);
             
-            if (item.type === ItemType.HEALTH_POTION) {
+            if (item.type === ItemType.KEY) {
+                newPlayer.keysHeld += 1;
+                const xpForKey = 25 * dungeonLevel;
+                newPlayer = handleXpGain(newPlayer, xpForKey);
+            } else if (item.type === ItemType.HEALTH_POTION) {
                 const healAmount = Math.floor(newPlayer.maxHp * (item.value / 100));
                 newPlayer.hp = Math.min(newPlayer.maxHp, newPlayer.hp + healAmount);
             } else if (item.type === ItemType.ATTACK_BOOST) {
                 newPlayer.attack += item.value;
             } else if (item.type === ItemType.DEFENSE_BOOST) {
                 newPlayer.defense += item.value;
+            } else if (item.type === ItemType.STEP_BOOST) {
+                newPlayer.steps += item.value;
             }
             newItems.splice(itemIndex, 1);
         }
 
         processTurn(newPlayer, monsters, newItems);
-    }, [gameState, processTurn, advanceLevel, addMessage]);
+    }, [gameState, processTurn, advanceLevel, addMessage, handleXpGain, requiredKeys, dungeonLevel]);
+
+    const handleDirectionalControl = useCallback((dir: Direction) => {
+        let dx = 0, dy = 0;
+        if (dir === 'UP') dy = -1;
+        else if (dir === 'DOWN') dy = 1;
+        else if (dir === 'LEFT') dx = -1;
+        else if (dir === 'RIGHT') dx = 1;
+        if (dx !== 0 || dy !== 0) handlePlayerMove(dx, dy);
+    }, [handlePlayerMove]);
 
     useGameInput({
-        onDirection: (dir) => {
-            let dx = 0, dy = 0;
-            if (dir === 'UP') dy = -1;
-            else if (dir === 'DOWN') dy = 1;
-            else if (dir === 'LEFT') dx = -1;
-            else if (dir === 'RIGHT') dx = 1;
-            if (dx !== 0 || dy !== 0) handlePlayerMove(dx, dy);
-        }
+        onDirection: handleDirectionalControl,
     }, gameState === GameState.PLAYING);
     
     const restartGame = () => {
@@ -304,20 +407,13 @@ const App: React.FC = () => {
         setGameData(null);
     };
 
-    const handleDirectionalControl = (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
-        let dx = 0, dy = 0;
-        if (dir === 'UP') dy = -1;
-        else if (dir === 'DOWN') dy = 1;
-        else if (dir === 'LEFT') dx = -1;
-        else if (dir === 'RIGHT') dx = 1;
-        handlePlayerMove(dx, dy);
-    };
-
     switch (gameState) {
         case GameState.START_SCREEN:
-            return <StartScreen onSelectClass={startNewGame} />;
+            return <StartScreen onStartGame={startNewGame} onShowLeaderboard={() => setGameState(GameState.LEADERBOARD)} />;
+        case GameState.LEADERBOARD:
+            return <LeaderboardScreen onBack={() => setGameState(GameState.START_SCREEN)} />;
         case GameState.GAME_OVER:
-            return <GameOverScreen onRestart={restartGame} level={dungeonLevel} />;
+            return <GameOverScreen onRestart={restartGame} level={dungeonLevel} time={elapsedTime} />;
         case GameState.GENERATING:
              return (
                 <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-center p-4">
@@ -328,7 +424,7 @@ const App: React.FC = () => {
         case GameState.PLAYING:
             if (!gameData) return null;
             return (
-                <main className="bg-slate-900 text-white w-screen h-screen flex flex-col overflow-hidden">
+                <main className="bg-slate-900 text-white w-screen h-screen flex flex-col overflow-hidden relative">
                     <GameContainer
                         gameData={gameData}
                         level={dungeonLevel}
@@ -338,11 +434,15 @@ const App: React.FC = () => {
                         onSelectMonster={setSelectedMonster}
                         isMuted={isMuted}
                         onToggleMute={handleToggleMute}
-                        onDirection={handleDirectionalControl}
                         desktopLayout={desktopLayout}
                         onToggleLayout={handleToggleLayout}
                         isDpadVisible={isDpadVisible}
                         onToggleDpad={handleToggleDpad}
+                        requiredKeys={requiredKeys}
+                        elapsedTime={elapsedTime}
+                        onDirection={handleDirectionalControl}
+                        dpadPosition={dpadPosition}
+                        onToggleDpadPosition={() => setDpadPosition(p => p === 'left' ? 'right' : 'left')}
                     />
                 </main>
             );

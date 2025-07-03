@@ -1,7 +1,6 @@
 
 import { useEffect } from 'react';
-
-type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+import { Direction } from '../types';
 
 interface Actions {
     onDirection: (dir: Direction) => void;
@@ -44,5 +43,5 @@ export const useGameInput = (actions: Actions, enabled: boolean) => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [actions, enabled]);
+    }, [actions.onDirection, enabled]);
 };

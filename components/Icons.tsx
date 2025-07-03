@@ -30,10 +30,19 @@ export const StairsIcon: React.FC = () => (
     </div>
 );
 
+export const DoorIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-amber-600" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M18 4v16H6V4h12m0-2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-3 9c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z"/>
+    </svg>
+);
+
+
 const itemColorMap: { [key in ItemType]: string } = {
     [ItemType.HEALTH_POTION]: 'text-red-400',
     [ItemType.ATTACK_BOOST]: 'text-orange-400',
     [ItemType.DEFENSE_BOOST]: 'text-sky-400',
+    [ItemType.KEY]: 'text-yellow-400',
+    [ItemType.STEP_BOOST]: 'text-lime-400',
 };
 
 export const ItemIcon: React.FC<{ symbol: string; type: ItemType }> = ({ symbol, type }) => {

@@ -1,13 +1,13 @@
+
 import React, { useState } from 'react';
 import GameMap from './GameMap';
 import PlayerStatus from './PlayerStatus';
 import MessageLog from './MessageLog';
 import Controls from './Controls';
-import { ArrowIcon } from './Icons';
-import { GameData, Monster } from '../types';
+import { SwapIcon } from './Icons';
+import { GameData, Monster, Direction } from '../types';
 import { MAP_WIDTH, MAP_HEIGHT } from '../constants';
 
-type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 interface GameContainerProps {
   gameData: GameData;
   level: number;
@@ -17,11 +17,15 @@ interface GameContainerProps {
   onSelectMonster: (monster: Monster) => void;
   isMuted: boolean;
   onToggleMute: () => void;
-  onDirection: (dir: Direction) => void;
   desktopLayout: 'horizontal' | 'vertical';
   onToggleLayout: () => void;
   isDpadVisible: boolean;
   onToggleDpad: () => void;
+  requiredKeys: number;
+  elapsedTime: number;
+  onDirection: (dir: Direction) => void;
+  dpadPosition: 'left' | 'right';
+  onToggleDpadPosition: () => void;
 }
 
 const MonsterTooltip: React.FC<{ monster: Monster }> = ({ monster }) => {
@@ -41,20 +45,37 @@ const MonsterTooltip: React.FC<{ monster: Monster }> = ({ monster }) => {
 };
 
 
-const GameContainer: React.FC<GameContainerProps> = ({ gameData, level, messages, theme, selectedMonster, onSelectMonster, isMuted, onToggleMute, onDirection, desktopLayout, onToggleLayout, isDpadVisible, onToggleDpad }) => {
+const GameContainer: React.FC<GameContainerProps> = ({ 
+    gameData, 
+    level, 
+    messages, 
+    theme, 
+    selectedMonster, 
+    onSelectMonster, 
+    isMuted, 
+    onToggleMute, 
+    desktopLayout, 
+    onToggleLayout, 
+    isDpadVisible, 
+    onToggleDpad, 
+    requiredKeys,
+    elapsedTime,
+    onDirection,
+    dpadPosition,
+    onToggleDpadPosition
+}) => {
   const [hoveredMonster, setHoveredMonster] = useState<Monster | null>(null);
-  const [dpadPosition, setDpadPosition] = useState<'right' | 'left'>('right');
-
 
   const monsterForTooltip = selectedMonster || hoveredMonster;
-  const arrowRotation = desktopLayout === 'horizontal' ? '-90deg' : '180deg';
-
+  const isHorizontal = desktopLayout === 'horizontal';
+  
   return (
-    <div className={`flex h-full w-full p-4 gap-4 ${desktopLayout === 'horizontal' ? 'flex-col md:flex-row' : 'flex-col'}`}>
-      {/* Map Side (Left on desktop, Top on mobile/vertical layout) */}
-      <div className="relative flex-auto flex items-center justify-center min-w-0 min-h-0">
+    <div className={`w-full h-full p-2 md:p-4 gap-4 flex flex-col ${isHorizontal ? 'md:flex-row' : ''}`}>
+      {/* Main Game Map Area */}
+      <div className="relative flex-grow flex items-center justify-center bg-black rounded-lg overflow-hidden">
         <div 
-          className="relative w-full h-full aspect-[50/30] bg-black p-2 rounded-lg border border-slate-700"
+          className="relative w-full h-full"
+          style={{ aspectRatio: `${MAP_WIDTH}/${MAP_HEIGHT}` }}
         >
           <GameMap
             map={gameData.map}
@@ -66,44 +87,61 @@ const GameContainer: React.FC<GameContainerProps> = ({ gameData, level, messages
             onSelectMonster={onSelectMonster}
           />
           {monsterForTooltip && (
-            <div 
-              className="absolute pointer-events-none" 
+            <div
+              className="absolute pointer-events-none"
               style={{
-                left: `calc(${(monsterForTooltip.x + 0.5) / MAP_WIDTH * 100}%)`,
-                top: `calc(${(monsterForTooltip.y + 0.5) / MAP_HEIGHT * 100}%)`,
+                left: `${(monsterForTooltip.x + 0.5) / MAP_WIDTH * 100}%`,
+                top: `${monsterForTooltip.y / MAP_HEIGHT * 100}%`,
               }}
             >
               <MonsterTooltip monster={monsterForTooltip} />
             </div>
           )}
-           <button
-                onClick={onToggleLayout}
-                className="absolute top-2 right-2 z-20 p-2 bg-slate-700/80 rounded-full hidden md:block hover:bg-sky-500/80 transition-colors shadow-lg"
-                aria-label={desktopLayout === 'horizontal' ? 'Switch to vertical layout' : 'Switch to horizontal layout'}
-            >
-                <ArrowIcon rotation={arrowRotation} />
-            </button>
+           {isDpadVisible && (
+              <Controls 
+                  onDirection={onDirection} 
+                  position={dpadPosition} 
+                  onTogglePosition={onToggleDpadPosition}
+              />
+          )}
         </div>
-        {isDpadVisible && <Controls 
-            onDirection={onDirection}
-            position={dpadPosition}
-            onTogglePosition={() => setDpadPosition(p => p === 'left' ? 'right' : 'left')}
-        />}
       </div>
-      
-      {/* Info Panel (Right on desktop, Bottom on mobile/vertical layout) */}
-      <div className={`flex gap-4 flex-none ${desktopLayout === 'horizontal' ? 'flex-row md:flex-col w-full md:w-96 h-48 md:h-auto' : 'flex-row w-full h-48'}`}>
-        <PlayerStatus 
-          player={gameData.player} 
-          level={level} 
-          theme={theme} 
-          isMuted={isMuted} 
-          onToggleMute={onToggleMute} 
-          isDpadVisible={isDpadVisible} 
-          onToggleDpad={onToggleDpad}
-          desktopLayout={desktopLayout}
-        />
-        <MessageLog messages={messages} />
+
+      {/* Sidebar Wrapper */}
+      <div className={`flex flex-col gap-4 ${isHorizontal ? 'md:w-96' : 'w-full md:h-72'}`}>
+        
+        {/* Panels (Status + Log) */}
+        <div className={`flex-grow min-h-0 flex flex-col gap-4 ${isHorizontal ? '' : 'md:flex-row'}`}>
+          <div className="flex-1 min-h-0">
+            <PlayerStatus
+              player={gameData.player}
+              level={level}
+              requiredKeys={requiredKeys}
+              theme={theme}
+              isMuted={isMuted}
+              onToggleMute={onToggleMute}
+              isDpadVisible={isDpadVisible}
+              onToggleDpad={onToggleDpad}
+              desktopLayout={desktopLayout}
+              elapsedTime={elapsedTime}
+            />
+          </div>
+          <div className="flex-1 min-h-0">
+            <MessageLog messages={messages} />
+          </div>
+        </div>
+        
+        {/* Layout Toggle Button */}
+        <div className="hidden md:flex flex-shrink-0">
+          <button
+              onClick={onToggleLayout}
+              className="flex items-center justify-center gap-2 w-full p-2 bg-slate-700/80 rounded-lg text-white hover:bg-sky-500/80 transition-colors"
+              aria-label="Toggle Layout"
+          >
+              <SwapIcon /> 
+              <span>Toggle View</span>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
+
 import React from 'react';
 import { ArrowIcon, SwapIcon } from './Icons';
-
-type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+import { Direction } from '../types';
 
 interface ControlsProps {
   onDirection: (dir: Direction) => void;
@@ -27,12 +27,12 @@ const Controls: React.FC<ControlsProps> = ({ onDirection, position, onTogglePosi
     <div className={`absolute bottom-4 ${positionClass} z-50 grid grid-cols-3 grid-rows-3 gap-1 w-48 h-48 md:w-56 md:h-56`}>
       <div className="col-start-2 row-start-1 flex justify-center">
         <ControlButton onClick={() => onDirection('UP')} aria-label="Move Up">
-            <ArrowIcon rotation="rotate(90deg)" />
+            <ArrowIcon rotation="90deg" />
         </ControlButton>
       </div>
       <div className="col-start-1 row-start-2 flex justify-center">
         <ControlButton onClick={() => onDirection('LEFT')} aria-label="Move Left">
-            <ArrowIcon rotation="rotate(0deg)" />
+            <ArrowIcon rotation="0deg" />
         </ControlButton>
       </div>
       <div className="col-start-2 row-start-2 flex justify-center items-center">
@@ -46,12 +46,12 @@ const Controls: React.FC<ControlsProps> = ({ onDirection, position, onTogglePosi
       </div>
        <div className="col-start-3 row-start-2 flex justify-center">
         <ControlButton onClick={() => onDirection('RIGHT')} aria-label="Move Right">
-            <ArrowIcon rotation="rotate(180deg)" />
+            <ArrowIcon rotation="180deg" />
         </ControlButton>
       </div>
       <div className="col-start-2 row-start-3 flex justify-center">
         <ControlButton onClick={() => onDirection('DOWN')} aria-label="Move Down">
-            <ArrowIcon rotation="rotate(-90deg)" />
+            <ArrowIcon rotation="-90deg" />
         </ControlButton>
       </div>
     </div>
