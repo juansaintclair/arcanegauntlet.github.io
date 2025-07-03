@@ -1,8 +1,9 @@
 
-import React from 'react';
-import { Tile, Player, Monster, TileType, Position, Item, PlayerClass } from '../types';
+
+import React, { useRef, useState, useLayoutEffect } from 'react';
+import { Tile, Player, Monster, TileType, Position, Item } from '../types';
 import { PlayerIcon, MonsterIcon, StairsIcon, ItemIcon, DoorIcon } from './Icons';
-import { MAP_WIDTH, MAP_HEIGHT } from '../constants';
+import { TILE_PIXEL_SIZE } from '../constants';
 
 interface GameMapProps {
   map: Tile[][];
@@ -12,108 +13,158 @@ interface GameMapProps {
   items: Item[];
   onMonsterHover: (monster: Monster | null) => void;
   onSelectMonster: (monster: Monster) => void;
+  monsterForTooltip: Monster | null;
 }
 
 const getTileClass = (tile: Tile): string => {
   if (!tile.explored) {
-    return 'bg-black'; // Unseen area
+    return 'bg-black';
   }
-  
-  // Explored but not visible
   if (!tile.visible) {
     switch (tile.type) {
-      case TileType.WALL:
-        return 'bg-slate-800'; // Darkest shade for walls you've seen
+      case TileType.WALL: return 'bg-slate-800';
       case TileType.FLOOR:
-      case TileType.STAIRS:
-        return 'bg-slate-700'; // Dark, but clearly walkable path
-      case TileType.LOCKED_DOOR:
-        return 'bg-amber-900';
-      default:
-        return 'bg-black';
+      case TileType.STAIRS: return 'bg-slate-700';
+      case TileType.LOCKED_DOOR: return 'bg-amber-900';
+      default: return 'bg-black';
     }
   }
-
-  // Currently visible area
   switch (tile.type) {
-    case TileType.WALL:
-      return 'bg-slate-600'; // Lighter walls in line of sight
+    case TileType.WALL: return 'bg-slate-600';
     case TileType.FLOOR:
-    case TileType.STAIRS:
-      return 'bg-slate-400'; // Brightest for walkable area in sight
-    case TileType.LOCKED_DOOR:
-      return 'bg-amber-800';
-    default:
-        return 'bg-black';
+    case TileType.STAIRS: return 'bg-slate-400';
+    case TileType.LOCKED_DOOR: return 'bg-amber-800';
+    default: return 'bg-black';
   }
 };
 
-
-const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items, onMonsterHover, onSelectMonster }) => {
-  const monsterPositions = new Map<string, Monster>();
-  monsters.forEach(m => monsterPositions.set(`${m.x},${m.y}`, m));
-  
-  const itemPositions = new Map<string, Item>();
-  items.forEach(i => itemPositions.set(`${i.position.x},${i.position.y}`, i));
-
-
-  const renderTileContent = (x: number, y: number) => {
-    const monster = monsterPositions.get(`${x},${y}`);
-    const item = itemPositions.get(`${x},${y}`);
-
-    // Render priority: Player > Monster > Item > Scenery
-    if (player.x === x && player.y === y) return <PlayerIcon playerClass={player.playerClass} />;
-
-    if (monster) {
-      return (
-        <div 
-          onMouseEnter={() => onMonsterHover(monster)} 
-          onMouseLeave={() => onMonsterHover(null)}
-          onClick={() => onSelectMonster(monster)}
-          role="button"
-          tabIndex={0}
-          aria-label={`Inspect ${monster.name}`}
-          className="cursor-pointer w-full h-full flex items-center justify-center"
-        >
-            <MonsterIcon name={monster.name} spriteType={monster.spriteType} isBoss={monster.isBoss} />
-        </div>
-      );
-    }
-    
-    if (item) {
-        return <ItemIcon symbol={item.symbol} type={item.type} />;
-    }
-    
-    if (map[y][x].type === TileType.STAIRS) {
-        return <StairsIcon />;
-    }
-
-    if (map[y][x].type === TileType.LOCKED_DOOR) {
-        return <DoorIcon />;
-    }
-
-    return null;
-  };
-
+const MonsterTooltip: React.FC<{ monster: Monster }> = ({ monster }) => {
+  const hpPercentage = (monster.hp / monster.maxHp) * 100;
   return (
+    <div className="absolute z-10 p-3 bg-slate-900 border border-red-500 rounded-lg shadow-lg max-w-xs text-sm pointer-events-none transform -translate-x-1/2 -translate-y-[calc(100%+10px)]">
+        <div className="flex justify-between items-center mb-2">
+            <h4 className="font-bold text-lg text-red-400">{monster.name}</h4>
+            <span className="font-mono">{monster.hp}/{monster.maxHp} HP</span>
+        </div>
+        <div className="w-full bg-slate-600 rounded-full h-2 border border-slate-500 mb-2">
+          <div className="bg-red-600 h-full rounded-full" style={{ width: `${hpPercentage}%` }}></div>
+        </div>
+      <p className="italic text-slate-300">{monster.description}</p>
+    </div>
+  );
+};
+
+
+const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items, onMonsterHover, onSelectMonster, monsterForTooltip }) => {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+
+  useLayoutEffect(() => {
+    const updateSize = () => {
+      if (viewportRef.current) {
+        setViewportSize({
+          width: viewportRef.current.offsetWidth,
+          height: viewportRef.current.offsetHeight,
+        });
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (viewportRef.current) {
+        resizeObserver.observe(viewportRef.current);
+    }
+    
+    updateSize(); // Initial size
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  const cameraX = (viewportSize.width / 2) - ((player.x + 0.5) * TILE_PIXEL_SIZE);
+  const cameraY = (viewportSize.height / 2) - ((player.y + 0.5) * TILE_PIXEL_SIZE);
+
+  const MAP_HEIGHT = map.length;
+  const MAP_WIDTH = map[0]?.length || 0;
+  const worldWidth = MAP_WIDTH * TILE_PIXEL_SIZE;
+  const worldHeight = MAP_HEIGHT * TILE_PIXEL_SIZE;
+  
+  return (
+    <div ref={viewportRef} className="w-full h-full overflow-hidden bg-black relative">
       <div
-        className="grid font-mono text-center leading-none w-full h-full"
+        className="absolute transition-transform duration-100 ease-linear"
         style={{
-          gridTemplateColumns: `repeat(${MAP_WIDTH}, 1fr)`,
-          gridTemplateRows: `repeat(${MAP_HEIGHT}, 1fr)`,
+          width: worldWidth,
+          height: worldHeight,
+          transform: `translate3d(${cameraX}px, ${cameraY}px, 0)`,
         }}
       >
+        {/* Render Tiles */}
         {map.map((row, y) =>
           row.map((tile, x) => (
-            <div
-              key={`${x},${y}`}
-              className={`flex items-center justify-center ${getTileClass(tile)}`}
-            >
-              {tile.visible ? renderTileContent(x, y) : tile.explored && tile.type === TileType.WALL ? '' : ' '}
-            </div>
+             (tile.explored) && (
+              <div
+                key={`${x},${y}`}
+                className={`absolute ${getTileClass(tile)}`}
+                style={{
+                  left: x * TILE_PIXEL_SIZE,
+                  top: y * TILE_PIXEL_SIZE,
+                  width: TILE_PIXEL_SIZE,
+                  height: TILE_PIXEL_SIZE,
+                }}
+              />
+             )
           ))
         )}
+        
+        {/* Render Scenery and Items */}
+        {map.map((row, y) =>
+            row.map((tile, x) => {
+                if (!tile.visible) return null;
+                const key = `scenery_${x}_${y}`;
+                if (tile.type === TileType.STAIRS) {
+                    return <div key={key} style={{position: 'absolute', left: x * TILE_PIXEL_SIZE, top: y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><StairsIcon /></div>;
+                }
+                 if (tile.type === TileType.LOCKED_DOOR) {
+                    return <div key={key} style={{position: 'absolute', left: x * TILE_PIXEL_SIZE, top: y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><DoorIcon /></div>;
+                }
+                return null;
+            })
+        )}
+
+        {items.map(item => map[item.position.y]?.[item.position.x]?.visible && (
+            <div key={item.id} style={{position: 'absolute', left: item.position.x * TILE_PIXEL_SIZE, top: item.position.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><ItemIcon symbol={item.symbol} type={item.type} /></div>
+        ))}
+
+
+        {/* Render Monsters and Player */}
+        {monsters.map(monster => map[monster.y]?.[monster.x]?.visible && (
+             <div 
+                key={monster.id} 
+                style={{position: 'absolute', left: monster.x * TILE_PIXEL_SIZE, top: monster.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}
+                onMouseEnter={() => onMonsterHover(monster)} 
+                onMouseLeave={() => onMonsterHover(null)}
+                onClick={() => onSelectMonster(monster)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Inspect ${monster.name}`}
+                className="cursor-pointer"
+             >
+                <MonsterIcon name={monster.name} spriteType={monster.spriteType} isBoss={monster.isBoss} />
+             </div>
+        ))}
+        
+        <div style={{position: 'absolute', left: player.x * TILE_PIXEL_SIZE, top: player.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+            <PlayerIcon playerClass={player.playerClass} />
+        </div>
+        
+        {/* Render Tooltip */}
+        {monsterForTooltip && (
+             <div className="absolute" style={{left: (monsterForTooltip.x + 0.5) * TILE_PIXEL_SIZE, top: monsterForTooltip.y * TILE_PIXEL_SIZE}}>
+                <MonsterTooltip monster={monsterForTooltip} />
+             </div>
+        )}
+
       </div>
+    </div>
   );
 };
 

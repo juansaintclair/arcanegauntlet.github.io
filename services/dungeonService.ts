@@ -1,6 +1,7 @@
 
 
-import { MAP_WIDTH, MAP_HEIGHT } from '../constants';
+
+import { getMapDimensionsForLevel } from '../constants';
 import { Tile, TileType, GameData, Monster, Position, ProceduralMonster, Item, ItemType } from '../types';
 
 class Room {
@@ -90,6 +91,8 @@ const placeBoss = (room: Room, level: number, bossTemplate: ProceduralMonster): 
 };
 
 export const generateDungeon = (level: number, generatedMonsters: ProceduralMonster[], isBossLevel: boolean): Omit<GameData, 'player'> & { startingPosition: Position } => {
+    const { width: MAP_WIDTH, height: MAP_HEIGHT } = getMapDimensionsForLevel(level);
+
     const map: Tile[][] = Array.from({ length: MAP_HEIGHT }, () =>
         Array.from({ length: MAP_WIDTH }, () => ({ type: TileType.WALL, visible: false, explored: false }))
     );

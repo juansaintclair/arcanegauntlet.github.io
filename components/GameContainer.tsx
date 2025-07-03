@@ -6,7 +6,6 @@ import MessageLog from './MessageLog';
 import Controls from './Controls';
 import { SwapIcon } from './Icons';
 import { GameData, Monster, Direction } from '../types';
-import { MAP_WIDTH, MAP_HEIGHT } from '../constants';
 
 interface GameContainerProps {
   gameData: GameData;
@@ -27,23 +26,6 @@ interface GameContainerProps {
   dpadPosition: 'left' | 'right';
   onToggleDpadPosition: () => void;
 }
-
-const MonsterTooltip: React.FC<{ monster: Monster }> = ({ monster }) => {
-  const hpPercentage = (monster.hp / monster.maxHp) * 100;
-  return (
-    <div className="absolute z-10 p-3 bg-slate-900 border border-red-500 rounded-lg shadow-lg max-w-xs text-sm pointer-events-none transform -translate-x-1/2 -translate-y-[calc(100%+10px)]">
-        <div className="flex justify-between items-center mb-2">
-            <h4 className="font-bold text-lg text-red-400">{monster.name}</h4>
-            <span className="font-mono">{monster.hp}/{monster.maxHp} HP</span>
-        </div>
-        <div className="w-full bg-slate-600 rounded-full h-2 border border-slate-500 mb-2">
-          <div className="bg-red-600 h-full rounded-full" style={{ width: `${hpPercentage}%` }}></div>
-        </div>
-      <p className="italic text-slate-300">{monster.description}</p>
-    </div>
-  );
-};
-
 
 const GameContainer: React.FC<GameContainerProps> = ({ 
     gameData, 
@@ -75,7 +57,6 @@ const GameContainer: React.FC<GameContainerProps> = ({
       <div className="relative flex-grow flex items-center justify-center bg-black rounded-lg overflow-hidden">
         <div 
           className="relative w-full h-full"
-          style={{ aspectRatio: `${MAP_WIDTH}/${MAP_HEIGHT}` }}
         >
           <GameMap
             map={gameData.map}
@@ -85,18 +66,8 @@ const GameContainer: React.FC<GameContainerProps> = ({
             items={gameData.items}
             onMonsterHover={setHoveredMonster}
             onSelectMonster={onSelectMonster}
+            monsterForTooltip={monsterForTooltip}
           />
-          {monsterForTooltip && (
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                left: `${(monsterForTooltip.x + 0.5) / MAP_WIDTH * 100}%`,
-                top: `${monsterForTooltip.y / MAP_HEIGHT * 100}%`,
-              }}
-            >
-              <MonsterTooltip monster={monsterForTooltip} />
-            </div>
-          )}
            {isDpadVisible && (
               <Controls 
                   onDirection={onDirection} 

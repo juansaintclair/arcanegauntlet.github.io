@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction } from './types';
 import { useGameInput } from './hooks/useGameInput';
@@ -8,7 +9,6 @@ import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
 import GameContainer from './components/GameContainer';
 import LeaderboardScreen from './components/LeaderboardScreen';
-import { MAP_WIDTH, MAP_HEIGHT } from './constants';
 import { audioService } from './services/audioService';
 
 const App: React.FC = () => {
@@ -131,6 +131,9 @@ const App: React.FC = () => {
     const updateFogOfWar = useCallback((center: Position, map: GameData['map']) => {
         const visionRadius = 6;
         const newMap = map.map(row => row.map(tile => ({...tile, visible: false})));
+        const MAP_HEIGHT = newMap.length;
+        const MAP_WIDTH = newMap[0]?.length || 0;
+
 
         for (let y = 0; y < MAP_HEIGHT; y++) {
             for (let x = 0; x < MAP_WIDTH; x++) {
@@ -284,9 +287,9 @@ const App: React.FC = () => {
         const healAmount = Math.floor(newPlayer.maxHp * 0.5);
         newPlayer.hp = Math.min(newPlayer.maxHp, currentPlayer.hp + healAmount);
         
-        const stepBonus = 100 + Math.floor(dungeonLevel / 5) * 25;
-        newPlayer.steps = currentPlayer.steps + stepBonus;
-        addMessage(`You feel renewed as you descend. (+${stepBonus} steps)`);
+        // const stepBonus = 100 + Math.floor(dungeonLevel / 5) * 25;
+        newPlayer.steps = 250;
+        addMessage(`You feel renewed as you descend.`);
         
         const xpBonus = 50 * dungeonLevel;
         newPlayer = handleXpGain(newPlayer, xpBonus);
@@ -303,6 +306,8 @@ const App: React.FC = () => {
         const { player, map, monsters, stairs, items } = gameDataRef.current;
         const newX = player.x + dx;
         const newY = player.y + dy;
+        const MAP_WIDTH = map[0].length;
+        const MAP_HEIGHT = map.length;
 
         if (newX < 0 || newX >= MAP_WIDTH || newY < 0 || newY >= MAP_HEIGHT || map[newY][newX].type === TileType.WALL) {
             return;
