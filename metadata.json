@@ -1,0 +1,7 @@
+
+{
+  "name": "Arcane Gauntlet",
+  "description": "A simple but addictive roguelike dungeon crawler where every level is procedurally generated, creating a unique and unpredictable adventure every time you play.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
