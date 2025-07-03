@@ -189,7 +189,7 @@ const App: React.FC = () => {
             level: 1,
             xp: 0,
             xpToNextLevel: 100,
-            steps: 250,
+            steps: 300,
         };
 
         map = updateFogOfWar(player, map);
@@ -288,7 +288,7 @@ const App: React.FC = () => {
         newPlayer.hp = Math.min(newPlayer.maxHp, currentPlayer.hp + healAmount);
         
         // const stepBonus = 100 + Math.floor(dungeonLevel / 5) * 25;
-        newPlayer.steps = 250;
+        newPlayer.steps = 300;
         addMessage(`You feel renewed as you descend.`);
         
         const xpBonus = 50 * dungeonLevel;
