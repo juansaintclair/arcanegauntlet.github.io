@@ -288,7 +288,7 @@ const App: React.FC = () => {
         newPlayer.hp = Math.min(newPlayer.maxHp, currentPlayer.hp + healAmount);
         
         // const stepBonus = 100 + Math.floor(dungeonLevel / 5) * 25;
-        newPlayer.steps = 300;
+        newPlayer.steps = 400;
         addMessage(`You feel renewed as you descend.`);
         
         const xpBonus = 50 * dungeonLevel;
