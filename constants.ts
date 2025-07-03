@@ -1,7 +1,7 @@
 
 
-export const BASE_MAP_WIDTH = 80;
-export const BASE_MAP_HEIGHT = 50;
+export const BASE_MAP_WIDTH = 50;
+export const BASE_MAP_HEIGHT = 20;
 export const TILE_PIXEL_SIZE = 64; // Visual size of a tile in pixels
 
 /**
