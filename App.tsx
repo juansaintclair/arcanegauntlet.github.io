@@ -1,16 +1,15 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction, LegacyData, UpgradeType } from './types';
 import { useGameInput } from './hooks/useGameInput';
 import { generateDungeon } from './services/dungeonService';
 import { generateLevelContent } from './services/proceduralGenerationService';
 import { legacyService } from './services/legacyService';
-import { pathfindingService } from './services/pathfindingService';
+import { pathfindingService } from './services/pathFindingService';
 import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
 import GameContainer from './components/GameContainer';
 import LeaderboardScreen from './components/LeaderboardScreen';
-import ArmoryScreen from './components/ArmoryScreen';
+import ArmoryScreen from './components/ArmoryScreen.tsx';
 import { audioService } from './services/audioService';
 
 const App: React.FC = () => {
