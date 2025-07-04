@@ -6,7 +6,7 @@ import PlayerStatus from './PlayerStatus';
 import MessageLog from './MessageLog';
 import Controls from './Controls';
 import { GameData, Direction, Position } from '../types';
-import Minimap from "./minimap";
+import Minimap from "./Minimap"
 
 interface GameContainerProps {
   gameData: GameData;
