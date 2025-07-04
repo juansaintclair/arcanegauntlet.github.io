@@ -39,7 +39,7 @@ const getTileClass = (tile: Tile): string => {
 const HealthBar: React.FC<{ current: number; max: number; color: string }> = ({ current, max, color }) => {
     const percentage = max > 0 ? (current / max) * 100 : 0;
     return (
-        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-10 h-2 bg-slate-800/80 border border-black/50 rounded-full overflow-hidden">
+        <div className="absolute top-1 left-1/2 -translate-x-1/2 w-10 h-2 bg-slate-800/80 border border-black/50 rounded-full overflow-hidden">
             <div
                 className={`h-full rounded-full transition-all duration-300 ${color}`}
                 style={{ width: `${percentage}%` }}
