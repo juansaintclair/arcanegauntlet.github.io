@@ -265,15 +265,22 @@ export const generateDungeon = (level: number, generatedMonsters: ProceduralMons
                 const position = { x: itemX, y: itemY };
                 occupiedPositions.add(`${itemX},${itemY}`);
 
+                const isEarlyLevel = level <= 10;
                 const rand = Math.random();
-                if (rand < 0.08) {
+
+                // Define cumulative chances based on the level
+                const attackChance = isEarlyLevel ? 0.10 : 0.08;
+                const defenseChance = isEarlyLevel ? 0.20 : 0.16;
+                const stepBoostChance = isEarlyLevel ? 0.60 : 0.45; // 40% chance early, 29% late
+
+                if (rand < attackChance) { // 10% early, 8% late
                     items.push({ id: `item_${Date.now()}_${i}`, position, type: ItemType.ATTACK_BOOST, value: 1, name: "Sharpening Stone", symbol: '▲', description: "Permanently increases Attack by 1." });
-                } else if (rand < 0.16) {
+                } else if (rand < defenseChance) { // 10% early, 8% late
                     items.push({ id: `item_${Date.now()}_${i}`, position, type: ItemType.DEFENSE_BOOST, value: 1, name: "Iron Plates", symbol: '⬟', description: "Permanently increases Defense by 1." });
-                } else if (rand < 0.45) {
+                } else if (rand < stepBoostChance) { // 40% early, 29% late
                     const stepValue = 50 + Math.floor(level / 3) * 10;
                     items.push({ id: `item_step_${Date.now()}_${i}`, position, type: ItemType.STEP_BOOST, value: stepValue, name: "Trail Rations", symbol: '🥖', description: `Restores energy, granting ${stepValue} steps.` });
-                } else {
+                } else { // 40% early, 55% late
                     items.push({ id: `item_${Date.now()}_${i}`, position, type: ItemType.HEALTH_POTION, value: 40, name: "Healing Salve", symbol: '♥', description: "Restores 40% of max HP." });
                 }
             }
