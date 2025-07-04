@@ -1,17 +1,20 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction, LegacyData, UpgradeType } from './types';
+import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction, LegacyData, UpgradeType, Relic, RelicType } from './types';
 import { useGameInput } from './hooks/useGameInput';
 import { generateDungeon } from './services/dungeonService';
 import { generateLevelContent } from './services/proceduralGenerationService';
 import { legacyService } from './services/legacyService';
-import { pathfindingService } from './services/pathFindingService';
+import { pathfindingService } from './services/pathfindingService';
 import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
 import GameContainer from './components/GameContainer';
 import LeaderboardScreen from './components/LeaderboardScreen';
 import ArmoryScreen from './components/ArmoryScreen';
+import RelicCompendiumScreen from './components/RelicCompendiumScreen';
+import HowToPlayScreen from './components/HowToPlayScreen';
 import { audioService } from './services/audioService';
+import { RELICS_CONFIG } from './constants';
 
 const App: React.FC = () => {
     const [gameState, setGameState] = useState<GameState>(GameState.START_SCREEN);
@@ -36,6 +39,7 @@ const App: React.FC = () => {
 
     // Pathfinding state
     const [currentPath, setCurrentPath] = useState<Position[]>([]);
+    const [isProcessingTurn, setIsProcessingTurn] = useState(false);
 
     const requiredKeys = gameData ? 1 + Math.floor((dungeonLevel - 1) / 5) : 1;
 
@@ -131,7 +135,7 @@ const App: React.FC = () => {
             setLegacyData(updatedLegacyData);
             addMessage(`You collected ${totalShardsGained} Soul Shards for your legacy.`);
         }
-
+        setIsProcessingTurn(false);
     }, [addMessage, submitScore, legacyData, dungeonLevel, shardsThisRun]);
 
     const handleXpGain = useCallback((player: Player, xpGained: number): Player => {
@@ -206,6 +210,7 @@ const App: React.FC = () => {
         setElapsedTime(0);
         setShardsThisRun(0);
         setCurrentPath([]);
+        setIsProcessingTurn(false);
 
         const legacyBonuses = legacyService.getUpgradeBonuses(legacyData.upgrades);
 
@@ -241,6 +246,8 @@ const App: React.FC = () => {
             level: 1,
             xp: 0,
             xpToNextLevel: 100,
+            relics: [],
+            stepsSinceLastRegen: 0,
         };
 
         map = updateFogOfWar(player, map);
@@ -249,33 +256,40 @@ const App: React.FC = () => {
         setGameState(GameState.PLAYING);
     }, [addMessage, updateFogOfWar, legacyData]);
     
+    const onMonsterDefeat = useCallback((player: Player, monster: Monster): { updatedPlayer: Player; shardsGained: number } => {
+        const hasAmulet = player.relics.some(r => r.id === 'AMULET_OF_KNOWLEDGE');
+        const hasCatcher = player.relics.some(r => r.id === 'SOUL_CATCHER');
+
+        let xpGained = Math.floor(10 + monster.maxHp / 4 + monster.attack * 2);
+        if (hasAmulet) xpGained *= 2;
+        
+        const updatedPlayer = handleXpGain(player, xpGained);
+
+        let shardsGained = 1 + Math.floor(monster.maxHp / 15);
+        if (hasCatcher) shardsGained = Math.floor(shardsGained * 1.5);
+        
+        return { updatedPlayer, shardsGained };
+    }, [handleXpGain]);
+
     const processTurn = useCallback((playerState: Player, monsterState: Monster[], itemState: Item[], newMap?: Tile[][]) => {
         if (playerState.steps < 0) {
              handleGameOver("You ran out of energy and collapsed.");
              return;
         }
 
-        const playerAfterMonsterAttacks = {...playerState};
+        let playerAfterTurn = {...playerState};
         const currentMap = newMap || gameDataRef.current!.map;
 
-        const updatedMonsters = monsterState.map(monster => {
+        const livingMonsters = monsterState.filter(m => m.hp > 0);
+
+        const monstersAfterMove = livingMonsters.map(monster => {
             const dx = playerState.x - monster.x;
             const dy = playerState.y - monster.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             let newMonsterPos = { x: monster.x, y: monster.y };
 
             if (distance < 8) {
-                if (distance < 1.5) {
-                    const monsterDamage = Math.max(1, monster.attack - playerState.defense);
-                    if (monsterDamage > 0) {
-                        playerAfterMonsterAttacks.hp -= monsterDamage;
-                        addMessage(`The ${monster.name} attacks you for ${monsterDamage} damage.`);
-                        audioService.play('damage');
-                        setCurrentPath([]); // Interrupt pathfinding on taking damage
-                    } else {
-                        addMessage(`The ${monster.name}'s attack glances off your armor.`);
-                    }
-                } else {
+                if (distance >= 1.5) { // Monster moves if not adjacent
                     const nextPosOptions = [];
                     if (Math.sign(dx) !== 0) nextPosOptions.push({x: monster.x + Math.sign(dx), y: monster.y});
                     if (Math.sign(dy) !== 0) nextPosOptions.push({x: monster.x, y: monster.y + Math.sign(dy)});
@@ -294,20 +308,59 @@ const App: React.FC = () => {
             return { ...monster, ...newMonsterPos };
         });
 
-        const mapAfterFog = updateFogOfWar(playerAfterMonsterAttacks, currentMap);
+        const monstersStillAlive = [];
+
+        for(const monster of monstersAfterMove) {
+            const dx = playerAfterTurn.x - monster.x;
+            const dy = playerAfterTurn.y - monster.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 1.5) { // Monster attacks if adjacent
+                const monsterDamage = Math.max(1, monster.attack - playerAfterTurn.defense);
+                if (monsterDamage > 0) {
+                    playerAfterTurn.hp -= monsterDamage;
+                    addMessage(`The ${monster.name} attacks you for ${monsterDamage} damage.`);
+                    audioService.play('damage');
+                    setCurrentPath([]); // Interrupt pathfinding on taking damage
+                } else {
+                    addMessage(`The ${monster.name}'s attack glances off your armor.`);
+                }
+
+                // Thorns Shield Relic Effect
+                const hasThorns = playerAfterTurn.relics.some(r => r.id === 'THORNS_SHIELD');
+                if (hasThorns && monsterDamage > 0) {
+                    const thornsDamage = Math.max(1, Math.floor(playerAfterTurn.defense / 3));
+                    monster.hp -= thornsDamage;
+                    addMessage(`Your [Thorns Shield] damages the ${monster.name} for ${thornsDamage}.`);
+
+                    if (monster.hp <= 0) {
+                        addMessage(`The ${monster.name} was defeated by your spikes!`);
+                        const { updatedPlayer, shardsGained } = onMonsterDefeat(playerAfterTurn, monster);
+                        playerAfterTurn = updatedPlayer;
+                        setShardsThisRun(prev => prev + shardsGained);
+                        continue; // Skip adding this monster to the next turn's list
+                    }
+                }
+            }
+            monstersStillAlive.push(monster);
+        }
+
+        const mapAfterFog = updateFogOfWar(playerAfterTurn, currentMap);
 
         setGameData({
-            player: playerAfterMonsterAttacks,
-            monsters: updatedMonsters,
+            player: playerAfterTurn,
+            monsters: monstersStillAlive,
             items: itemState,
             map: mapAfterFog,
             stairs: gameDataRef.current!.stairs,
         });
 
-        if (playerAfterMonsterAttacks.hp <= 0) {
+        if (playerAfterTurn.hp <= 0) {
             handleGameOver("You have been defeated.");
+        } else {
+            setIsProcessingTurn(false);
         }
-    }, [addMessage, updateFogOfWar, handleGameOver]);
+    }, [addMessage, updateFogOfWar, handleGameOver, onMonsterDefeat]);
 
     const advanceLevel = useCallback(() => {
         audioService.play('stairs');
@@ -352,12 +405,30 @@ const App: React.FC = () => {
         map = updateFogOfWar(newPlayer, map);
         setGameData({ map, player: newPlayer, monsters, stairs, items });
         setGameState(GameState.PLAYING);
+        setIsProcessingTurn(false);
     }, [dungeonLevel, addMessage, updateFogOfWar, handleXpGain, legacyData]);
+    
+    const handleRelicStepEffects = useCallback((player: Player): Player => {
+        let updatedPlayer = {...player};
+        const hasGolemHeart = player.relics.some(r => r.id === 'GOLEM_HEART');
+
+        if(hasGolemHeart) {
+            updatedPlayer.stepsSinceLastRegen += 1;
+            if (updatedPlayer.stepsSinceLastRegen >= 20) {
+                updatedPlayer.hp = Math.min(updatedPlayer.maxHp, updatedPlayer.hp + 1);
+                updatedPlayer.stepsSinceLastRegen = 0;
+                addMessage("[Golem Heart] You regenerate 1 HP.");
+            }
+        }
+        return updatedPlayer;
+    }, [addMessage]);
 
     const handlePlayerMove = useCallback((dx: number, dy: number) => {
-        if (!gameDataRef.current || gameState !== GameState.PLAYING) return;
+        if (!gameDataRef.current || gameState !== GameState.PLAYING || isProcessingTurn) return;
         
-        const { player, map, monsters, stairs, items } = gameDataRef.current;
+        setIsProcessingTurn(true);
+        
+        let { player, map, monsters, stairs, items } = gameDataRef.current;
         const newX = player.x + dx;
         const newY = player.y + dy;
         const MAP_WIDTH = map[0].length;
@@ -365,27 +436,34 @@ const App: React.FC = () => {
 
         if (newX < 0 || newX >= MAP_WIDTH || newY < 0 || newY >= MAP_HEIGHT || map[newY][newX].type === TileType.WALL) {
             setCurrentPath([]); // Stop if trying to move into a wall
+            setIsProcessingTurn(false);
             return;
         }
         
+        let playerForNextTurn = { ...player, steps: player.steps - 1 };
+
         const monsterAtNewPos = monsters.find(m => m.x === newX && m.y === newY);
         if (monsterAtNewPos) {
             setCurrentPath([]); // Stop pathfinding to engage in combat
-            const playerDamage = Math.max(1, player.attack - 0);
+            
+            const hasVampiricFang = playerForNextTurn.relics.some(r => r.id === 'VAMPIRIC_FANG');
+            const playerDamage = Math.max(1, playerForNextTurn.attack - 0);
             const newMonsterHp = monsterAtNewPos.hp - playerDamage;
             addMessage(`You attack the ${monsterAtNewPos.name} for ${playerDamage} damage.`);
             audioService.play('attack');
             
+            if (hasVampiricFang) {
+                playerForNextTurn.hp = Math.min(playerForNextTurn.maxHp, playerForNextTurn.hp + 1);
+                addMessage(`[Vampiric Fang] You drain 1 HP.`);
+            }
+            
             const damagedMonsters = monsters.map(m => m.id === monsterAtNewPos.id ? {...m, hp: newMonsterHp} : m);
             let mapForNextTurn;
-            let playerForNextTurn = { ...player, steps: player.steps - 1 };
 
             if (newMonsterHp <= 0) {
                 addMessage(`You defeated the ${monsterAtNewPos.name}!`);
-                const xpGained = Math.floor(10 + monsterAtNewPos.maxHp / 4 + monsterAtNewPos.attack * 2);
-                playerForNextTurn = handleXpGain(playerForNextTurn, xpGained);
-
-                const shardsGained = 1 + Math.floor(monsterAtNewPos.maxHp / 15);
+                const { updatedPlayer, shardsGained } = onMonsterDefeat(playerForNextTurn, monsterAtNewPos);
+                playerForNextTurn = updatedPlayer;
                 addMessage(`You collected ${shardsGained} Soul Shards.`);
                 setShardsThisRun(prev => prev + shardsGained);
 
@@ -409,10 +487,12 @@ const App: React.FC = () => {
                 audioService.play('stairs');
                 const newMap = map.map(row => row.map(tile => ({...tile})));
                 newMap[newY][newX].type = TileType.FLOOR;
-                const updatedPlayer = { ...player, x: newX, y: newY, keysHeld: 0, steps: player.steps - 1 };
-                processTurn(updatedPlayer, monsters, items, newMap);
+                playerForNextTurn = { ...playerForNextTurn, x: newX, y: newY, keysHeld: 0 };
+                playerForNextTurn = handleRelicStepEffects(playerForNextTurn);
+                processTurn(playerForNextTurn, monsters, items, newMap);
             } else {
                 addMessage(`The door is locked. It requires ${requiredKeys} key(s).`);
+                setIsProcessingTurn(false);
             }
             return;
         }
@@ -423,37 +503,52 @@ const App: React.FC = () => {
                 return;
             }
         }
-
-        let newPlayer = { ...player, x: newX, y: newY, steps: player.steps - 1 };
+        
+        playerForNextTurn = { ...playerForNextTurn, x: newX, y: newY };
         let newItems = [...items];
         const itemIndex = items.findIndex(i => i.position.x === newX && i.position.y === newY);
 
         if (itemIndex > -1) {
             const item = items[itemIndex];
             audioService.play('pickup');
-            addMessage(`You picked up: ${item.name}.`);
+            addMessage(`You found: ${item.name}.`);
             
             if (item.type === ItemType.KEY) {
-                newPlayer.keysHeld += 1;
+                playerForNextTurn.keysHeld += 1;
                 const xpForKey = 25 * dungeonLevel;
-                newPlayer = handleXpGain(newPlayer, xpForKey);
+                playerForNextTurn = handleXpGain(playerForNextTurn, xpForKey);
             } else if (item.type === ItemType.HEALTH_POTION) {
-                const healAmount = Math.floor(newPlayer.maxHp * (item.value / 100));
-                newPlayer.hp = Math.min(newPlayer.maxHp, newPlayer.hp + healAmount);
+                const healAmount = Math.floor(playerForNextTurn.maxHp * (item.value / 100));
+                playerForNextTurn.hp = Math.min(playerForNextTurn.maxHp, playerForNextTurn.hp + healAmount);
             } else if (item.type === ItemType.ATTACK_BOOST) {
-                newPlayer.attack += item.value;
+                playerForNextTurn.attack += item.value;
             } else if (item.type === ItemType.DEFENSE_BOOST) {
-                newPlayer.defense += item.value;
+                playerForNextTurn.defense += item.value;
             } else if (item.type === ItemType.STEP_BOOST) {
-                newPlayer.steps += item.value;
+                playerForNextTurn.steps += item.value;
+            } else if (item.type === ItemType.RELIC) {
+                const heldRelicIds = new Set(playerForNextTurn.relics.map(r => r.id));
+                const availableRelics = (Object.keys(RELICS_CONFIG) as RelicType[]).filter(id => !heldRelicIds.has(id));
+
+                if (availableRelics.length > 0) {
+                    const newRelicId = availableRelics[Math.floor(Math.random() * availableRelics.length)];
+                    const newRelic = RELICS_CONFIG[newRelicId];
+                    playerForNextTurn.relics.push(newRelic);
+                    addMessage(`You touch the altar. A new power infuses you...`);
+                    addMessage(`[${newRelic.name}]: ${newRelic.description}`);
+                } else {
+                    addMessage("The altar is dormant. You have already absorbed all available power.");
+                }
             }
             newItems.splice(itemIndex, 1);
         }
-
-        processTurn(newPlayer, monsters, newItems);
-    }, [gameState, processTurn, advanceLevel, addMessage, handleXpGain, requiredKeys, dungeonLevel]);
+        
+        playerForNextTurn = handleRelicStepEffects(playerForNextTurn);
+        processTurn(playerForNextTurn, monsters, newItems);
+    }, [gameState, processTurn, advanceLevel, addMessage, handleXpGain, requiredKeys, dungeonLevel, onMonsterDefeat, handleRelicStepEffects, isProcessingTurn]);
 
     const handleDirectionalControl = useCallback((dir: Direction) => {
+        if (isProcessingTurn) return;
         setCurrentPath([]); // Interrupt any ongoing pathfinding
         let dx = 0, dy = 0;
         if (dir === 'UP') dy = -1;
@@ -461,15 +556,19 @@ const App: React.FC = () => {
         else if (dir === 'LEFT') dx = -1;
         else if (dir === 'RIGHT') dx = 1;
         if (dx !== 0 || dy !== 0) handlePlayerMove(dx, dy);
-    }, [handlePlayerMove]);
+    }, [handlePlayerMove, isProcessingTurn]);
     
     const handleTileClick = useCallback((pos: Position) => {
-        if (!gameDataRef.current || gameState !== GameState.PLAYING) return;
-        const { player, map, monsters } = gameDataRef.current;
+        if (!gameDataRef.current || gameState !== GameState.PLAYING || isProcessingTurn) return;
+        const { player, map, monsters, items, stairs } = gameDataRef.current;
 
         if (map[pos.y]?.[pos.x]?.type === TileType.WALL) return;
-
+        
+        // Prioritize clicking on interactive elements
         const targetMonster = monsters.find(m => m.x === pos.x && m.y === pos.y);
+        const targetItem = items.find(i => i.position.x === pos.x && i.position.y === pos.y);
+        const isStairs = stairs.x === pos.x && stairs.y === pos.y;
+        const isDoor = map[pos.y]?.[pos.x]?.type === TileType.LOCKED_DOOR;
 
         if (targetMonster) {
             const dx = targetMonster.x - player.x;
@@ -478,6 +577,7 @@ const App: React.FC = () => {
 
             if (distance < 1.5) {
                 handlePlayerMove(dx, dy);
+                return;
             } else {
                 const targetTiles: Position[] = [];
                 const directions = [
@@ -508,15 +608,18 @@ const App: React.FC = () => {
                 const bestTargetTile = targetTiles[0];
                 const path = pathfindingService.findPath(map, player, bestTargetTile);
                 setCurrentPath(path);
+                return;
             }
-        } else {
-            const path = pathfindingService.findPath(map, player, pos);
-            setCurrentPath(path);
         }
-    }, [gameState, handlePlayerMove]);
+        
+        // If not attacking, pathfind to the tile
+        const path = pathfindingService.findPath(map, player, pos);
+        setCurrentPath(path);
+        
+    }, [gameState, handlePlayerMove, isProcessingTurn]);
 
     useEffect(() => {
-        if (gameState !== GameState.PLAYING || currentPath.length === 0 || !gameData) {
+        if (gameState !== GameState.PLAYING || currentPath.length === 0 || !gameData || isProcessingTurn) {
             return;
         }
 
@@ -531,15 +634,15 @@ const App: React.FC = () => {
         const dx = nextStep.x - player.x;
         const dy = nextStep.y - player.y;
 
-        if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || (dx !== 0 && dy !== 0)) {
-            setCurrentPath([]);
-            return;
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) { // Path is diagonal or broken
+             setCurrentPath([]); // Stop invalid paths
+             return;
         }
         
         const timerId = setTimeout(() => handlePlayerMove(dx, dy), 60);
         return () => clearTimeout(timerId);
 
-    }, [gameData, currentPath, gameState, handlePlayerMove]);
+    }, [gameData, currentPath, gameState, handlePlayerMove, isProcessingTurn]);
 
 
     const handlePurchaseUpgrade = useCallback((upgradeId: UpgradeType) => {
@@ -573,9 +676,13 @@ const App: React.FC = () => {
 
     switch (gameState) {
         case GameState.START_SCREEN:
-            return <StartScreen onStartGame={startNewGame} onShowLeaderboard={() => setGameState(GameState.LEADERBOARD)} onShowArmory={() => setGameState(GameState.ARMORY)} />;
+            return <StartScreen onStartGame={startNewGame} onShowLeaderboard={() => setGameState(GameState.LEADERBOARD)} onShowArmory={() => setGameState(GameState.ARMORY)} onShowRelicCompendium={() => setGameState(GameState.RELIC_COMPENDIUM)} onShowHowToPlay={() => setGameState(GameState.HOW_TO_PLAY)} />;
         case GameState.LEADERBOARD:
             return <LeaderboardScreen onBack={() => setGameState(GameState.START_SCREEN)} />;
+        case GameState.RELIC_COMPENDIUM:
+            return <RelicCompendiumScreen onBack={() => setGameState(GameState.START_SCREEN)} />;
+        case GameState.HOW_TO_PLAY:
+            return <HowToPlayScreen onBack={() => setGameState(GameState.START_SCREEN)} />;
         case GameState.ARMORY:
             if (!legacyData) return null; // or a loading screen
             return <ArmoryScreen onBack={() => setGameState(GameState.START_SCREEN)} legacyData={legacyData} onPurchase={handlePurchaseUpgrade} />;

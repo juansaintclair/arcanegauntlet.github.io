@@ -16,6 +16,8 @@ export enum GameState {
   GENERATING,
   LEADERBOARD,
   ARMORY,
+  RELIC_COMPENDIUM,
+  HOW_TO_PLAY,
 }
 
 export enum PlayerClass {
@@ -29,6 +31,7 @@ export enum ItemType {
     HEALTH_POTION,
     KEY,
     STEP_BOOST,
+    RELIC,
 }
 
 export interface Tile {
@@ -64,6 +67,8 @@ export interface Player extends Position {
   xp: number;
   xpToNextLevel: number;
   steps: number;
+  relics: Relic[];
+  stepsSinceLastRegen: number;
 }
 
 export interface Monster extends Position {
@@ -120,4 +125,14 @@ export interface Upgrade {
 export interface LegacyData {
     soulShards: number;
     upgrades: Record<UpgradeType, number>;
+}
+
+// Relic Types
+export type RelicType = 'VAMPIRIC_FANG' | 'THORNS_SHIELD' | 'AMULET_OF_KNOWLEDGE' | 'SOUL_CATCHER' | 'GOLEM_HEART';
+
+export interface Relic {
+    id: RelicType;
+    name: string;
+    description: string;
+    symbol: string;
 }

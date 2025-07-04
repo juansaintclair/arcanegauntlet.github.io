@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Player, PlayerClass } from '../types';
 import { GamepadIcon, SoulShardIcon, MinimapIcon } from './Icons';
@@ -129,6 +130,22 @@ const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys
             <div className="mt-3">
               <h3 className="text-base md:text-lg font-bold text-slate-400 mb-1">Dungeon Theme</h3>
               <p className="text-sm md:text-base text-slate-300 italic break-words">"{theme}"</p>
+            </div>
+
+            <div className="mt-4">
+              <h3 className="text-base md:text-lg font-bold text-slate-400 mb-2">Relics</h3>
+              {player.relics.length === 0 ? (
+                <p className="text-sm text-slate-500 italic">None yet...</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {player.relics.map(relic => (
+                    <div key={relic.id} className="text-left text-sm" title={relic.description}>
+                      <span className="mr-2 text-base">{relic.symbol}</span>
+                      <span className="font-bold">{relic.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -76,6 +76,7 @@ const itemColorMap: { [key in ItemType]: string } = {
     [ItemType.DEFENSE_BOOST]: 'text-sky-400',
     [ItemType.KEY]: 'text-yellow-400',
     [ItemType.STEP_BOOST]: 'text-lime-400',
+    [ItemType.RELIC]: 'text-purple-400',
 };
 
 export const ItemIcon: React.FC<{ symbol: string; type: ItemType }> = ({ symbol, type }) => {

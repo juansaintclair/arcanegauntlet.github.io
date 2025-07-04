@@ -8,6 +8,8 @@ interface StartScreenProps {
   onStartGame: (playerClass: PlayerClass, name: string) => void;
   onShowLeaderboard: () => void;
   onShowArmory: () => void;
+  onShowRelicCompendium: () => void;
+  onShowHowToPlay: () => void;
 }
 
 const ClassCard: React.FC<{
@@ -33,7 +35,7 @@ const ClassCard: React.FC<{
 );
 
 
-const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onShowLeaderboard, onShowArmory }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onShowLeaderboard, onShowArmory, onShowRelicCompendium, onShowHowToPlay }) => {
   const [playerName, setPlayerName] = useState('');
   const [error, setError] = useState('');
 
@@ -83,7 +85,19 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onShowLeaderboar
         />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
+        <button
+            onClick={onShowHowToPlay}
+            className="px-8 py-3 bg-green-700 text-white font-bold text-xl rounded-lg hover:bg-green-600 transition-colors duration-300 transform hover:scale-105"
+        >
+            How to Play
+        </button>
+        {/* <button
+            onClick={onShowRelicCompendium}
+            className="px-8 py-3 bg-yellow-700 text-white font-bold text-xl rounded-lg hover:bg-yellow-600 transition-colors duration-300 transform hover:scale-105"
+        >
+            Relic Compendium
+        </button> */}
         <button
             onClick={onShowArmory}
             className="px-8 py-3 bg-purple-700 text-white font-bold text-xl rounded-lg hover:bg-purple-600 transition-colors duration-300 transform hover:scale-105"
