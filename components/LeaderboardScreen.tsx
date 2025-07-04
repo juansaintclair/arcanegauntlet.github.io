@@ -76,19 +76,19 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack }) => {
                     <table className="w-full text-left font-mono">
                         <thead>
                             <tr className="border-b border-slate-600 text-slate-400 sticky top-0 bg-slate-800/50 backdrop-blur-sm">
-                                <th className="p-3 w-16 text-center">Rank</th>
-                                <th className="p-3">Name</th>
-                                <th className="p-3 text-center">Floor</th>
-                                <th className="p-3 text-center">Time</th>
+                                <th className="p-2 md:p-3 w-16 text-center">Rank</th>
+                                <th className="p-2 md:p-3">Name</th>
+                                <th className="p-2 md:p-3 text-center">Floor</th>
+                                <th className="p-2 md:p-3 text-center">Time</th>
                             </tr>
                         </thead>
                         <tbody>
                             {leaderboard.map((entry, index) => (
                                 <tr key={entry.id} className="border-b border-slate-700/50 hover:bg-slate-700/50">
-                                    <td className="p-3 text-center font-bold text-yellow-400">{index + 1}</td>
-                                    <td className="p-3 text-lg text-slate-200">{entry.name}</td>
-                                    <td className="p-3 text-center text-lg text-sky-300">{entry.floor}</td>
-                                    <td className="p-3 text-center text-lg text-slate-300">{formatTime(entry.time)}</td>
+                                    <td className="p-2 md:p-3 text-center font-bold text-yellow-400">{index + 1}</td>
+                                    <td className="p-2 md:p-3 text-lg text-slate-200">{entry.name}</td>
+                                    <td className="p-2 md:p-3 text-center text-lg text-sky-300">{entry.floor}</td>
+                                    <td className="p-2 md:p-3 text-center text-lg text-slate-300">{formatTime(entry.time)}</td>
                                 </tr>
                             ))}
                         </tbody>

@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { Tile, Player, Monster, TileType, Position, Item } from '../types';
 import { PlayerIcon, MonsterIcon, StairsIcon, ItemIcon, DoorIcon } from './Icons';
@@ -9,9 +10,8 @@ interface GameMapProps {
   monsters: Monster[];
   stairs: Position;
   items: Item[];
-  onMonsterHover: (monster: Monster | null) => void;
-  onSelectMonster: (monster: Monster) => void;
-  monsterForTooltip: Monster | null;
+  onTileClick: (pos: Position) => void;
+  currentPath: Position[];
 }
 
 const getTileClass = (tile: Tile): string => {
@@ -36,38 +36,19 @@ const getTileClass = (tile: Tile): string => {
   }
 };
 
-const MonsterTooltip: React.FC<{ monster: Monster }> = ({ monster }) => {
-  const hpPercentage = (monster.hp / monster.maxHp) * 100;
-  return (
-    <div className="absolute z-20 p-3 bg-slate-900 border border-red-500 rounded-lg shadow-lg max-w-xs text-sm pointer-events-none transform -translate-x-1/2 -translate-y-[calc(100%+10px)]">
-        <div className="flex justify-between items-center mb-2">
-            <h4 className="font-bold text-lg text-red-400">{monster.name}</h4>
-            <span className="font-mono">{monster.hp}/{monster.maxHp} HP</span>
+const HealthBar: React.FC<{ current: number; max: number; color: string }> = ({ current, max, color }) => {
+    const percentage = max > 0 ? (current / max) * 100 : 0;
+    return (
+        <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-10 h-2 bg-slate-800/80 border border-black/50 rounded-full overflow-hidden">
+            <div
+                className={`h-full rounded-full transition-all duration-300 ${color}`}
+                style={{ width: `${percentage}%` }}
+            ></div>
         </div>
-        <div className="w-full bg-slate-600 rounded-full h-2 border border-slate-500 mb-2">
-          <div className="bg-red-600 h-full rounded-full" style={{ width: `${hpPercentage}%` }}></div>
-        </div>
-      <p className="italic text-slate-300">{monster.description}</p>
-    </div>
-  );
+    );
 };
 
-const HealthBar: React.FC<{ current: number; max: number }> = ({ current, max }) => {
-  const percentage = max > 0 ? Math.max(0, (current / max) * 100) : 0;
-  const barColor = percentage > 60 ? 'bg-green-500' : percentage > 30 ? 'bg-yellow-500' : 'bg-red-600';
-
-  return (
-    <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-900/80 border border-slate-900 rounded-full z-10">
-      <div
-        className={`h-full rounded-full transition-all duration-300 ${barColor}`}
-        style={{ width: `${percentage}%` }}
-      />
-    </div>
-  );
-};
-
-
-const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items, onMonsterHover, onSelectMonster, monsterForTooltip }) => {
+const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items, onTileClick, currentPath }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
@@ -122,64 +103,69 @@ const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items,
                   width: TILE_PIXEL_SIZE,
                   height: TILE_PIXEL_SIZE,
                 }}
+                onClick={() => onTileClick({ x, y })}
               />
              )
           ))
         )}
+
+        {/* Render Path Visualization */}
+        {currentPath.map((pos, index) => (
+          <div
+            key={`path_${index}`}
+            className="absolute flex items-center justify-center pointer-events-none"
+            style={{
+              left: pos.x * TILE_PIXEL_SIZE,
+              top: pos.y * TILE_PIXEL_SIZE,
+              width: TILE_PIXEL_SIZE,
+              height: TILE_PIXEL_SIZE,
+            }}
+          >
+            <div className="w-3 h-3 bg-sky-400/50 rounded-full animate-pulse"></div>
+          </div>
+        ))}
         
-        {/* Render Scenery and Items */}
+        {/* Render Scenery */}
         {map.map((row, y) =>
             row.map((tile, x) => {
                 if (!tile.visible) return null;
                 const key = `scenery_${x}_${y}`;
+                const style: React.CSSProperties = {position: 'absolute', left: x * TILE_PIXEL_SIZE, top: y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'};
+                
                 if (tile.type === TileType.STAIRS) {
-                    return <div key={key} style={{position: 'absolute', left: x * TILE_PIXEL_SIZE, top: y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><StairsIcon /></div>;
+                    return <div key={key} className="cursor-pointer" style={style} onClick={() => onTileClick({ x, y })}><StairsIcon /></div>;
                 }
                  if (tile.type === TileType.LOCKED_DOOR) {
-                    return <div key={key} style={{position: 'absolute', left: x * TILE_PIXEL_SIZE, top: y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><DoorIcon /></div>;
+                    return <div key={key} className="cursor-pointer" style={style} onClick={() => onTileClick({ x, y })}><DoorIcon /></div>;
                 }
                 return null;
             })
         )}
 
+        {/* Render Items */}
         {items.map(item => map[item.position.y]?.[item.position.x]?.visible && (
-            <div key={item.id} style={{position: 'absolute', left: item.position.x * TILE_PIXEL_SIZE, top: item.position.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}><ItemIcon symbol={item.symbol} type={item.type} /></div>
+            <div key={item.id} className="cursor-pointer" style={{position: 'absolute', left: item.position.x * TILE_PIXEL_SIZE, top: item.position.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}} onClick={() => onTileClick(item.position)}><ItemIcon symbol={item.symbol} type={item.type} /></div>
         ))}
 
 
-        {/* Render Monsters and Player */}
+        {/* Render Monsters */}
         {monsters.map(monster => map[monster.y]?.[monster.x]?.visible && (
              <div 
                 key={monster.id} 
-                style={{position: 'absolute', left: monster.x * TILE_PIXEL_SIZE, top: monster.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}
-                onMouseEnter={() => onMonsterHover(monster)} 
-                onMouseLeave={() => onMonsterHover(null)}
-                onClick={() => onSelectMonster(monster)}
-                role="button"
-                tabIndex={0}
-                aria-label={`Inspect ${monster.name}`}
-                className="cursor-pointer"
+                className="absolute flex items-center justify-center cursor-pointer"
+                style={{ left: monster.x * TILE_PIXEL_SIZE, top: monster.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE }}
+                onClick={() => onTileClick({ x: monster.x, y: monster.y })}
              >
-                <div className="relative w-full h-full flex items-center justify-center">
-                    <MonsterIcon name={monster.name} spriteType={monster.spriteType} isBoss={monster.isBoss} />
-                    <HealthBar current={monster.hp} max={monster.maxHp} />
-                </div>
+                <MonsterIcon name={monster.name} spriteType={monster.spriteType} isBoss={monster.isBoss} />
+                <HealthBar current={monster.hp} max={monster.maxHp} color="bg-red-500" />
              </div>
         ))}
         
-        <div style={{position: 'absolute', left: player.x * TILE_PIXEL_SIZE, top: player.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-            <div className="relative w-full h-full flex items-center justify-center">
-                <PlayerIcon playerClass={player.playerClass} />
-                <HealthBar current={player.hp} max={player.maxHp} />
-            </div>
+        {/* Render Player */}
+        <div className="absolute flex items-center justify-center" style={{ left: player.x * TILE_PIXEL_SIZE, top: player.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE }}>
+            <PlayerIcon playerClass={player.playerClass} />
+            <HealthBar current={player.hp} max={player.maxHp} color="bg-green-500" />
         </div>
-        
-        {/* Render Tooltip */}
-        {monsterForTooltip && (
-             <div className="absolute" style={{left: (monsterForTooltip.x + 0.5) * TILE_PIXEL_SIZE, top: monsterForTooltip.y * TILE_PIXEL_SIZE}}>
-                <MonsterTooltip monster={monsterForTooltip} />
-             </div>
-        )}
 
       </div>
     </div>

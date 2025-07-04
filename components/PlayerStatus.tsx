@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Player, PlayerClass } from '../types';
-import { GamepadIcon } from './Icons';
+import { GamepadIcon, SoulShardIcon } from './Icons';
 
 interface PlayerStatusProps {
   player: Player;
@@ -12,8 +11,8 @@ interface PlayerStatusProps {
   onToggleMute: () => void;
   isDpadVisible: boolean;
   onToggleDpad: () => void;
-  desktopLayout: 'horizontal' | 'vertical';
   elapsedTime: number;
+  shardsThisRun: number;
 }
 
 const MuteIcon = () => (
@@ -34,13 +33,12 @@ const formatTime = (seconds: number) => {
     return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
 };
 
-const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys, theme, isMuted, onToggleMute, isDpadVisible, onToggleDpad, desktopLayout, elapsedTime }) => {
+const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys, theme, isMuted, onToggleMute, isDpadVisible, onToggleDpad, elapsedTime, shardsThisRun }) => {
   const hpPercentage = (player.hp / player.maxHp) * 100;
   const xpPercentage = player.xpToNextLevel > 0 ? (player.xp / player.xpToNextLevel) * 100 : 0;
-  const isVerticalDesktop = desktopLayout === 'vertical';
 
   return (
-    <div className="bg-slate-800 p-4 rounded-lg shadow-md border border-slate-700 h-full flex flex-col overflow-hidden">
+    <div className="bg-slate-800 p-4 rounded-lg shadow-md border border-slate-700 h-full flex flex-col overflow-y-auto">
       <div className="flex-shrink-0">
         <div className="flex justify-between items-center mb-1">
             <h2 className="text-xl font-bold text-sky-400 truncate pr-2">{player.name}</h2>
@@ -68,7 +66,7 @@ const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys
         </div>
       </div>
 
-      <div className="flex-grow overflow-y-auto pr-2 -mr-2">
+      <div className="flex-grow pr-2 -mr-2">
           <div className="mb-3">
             <div className="flex justify-between font-mono text-lg">
               <span className="font-bold">HP</span>
@@ -93,8 +91,8 @@ const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys
               ></div>
             </div>
           </div>
-          <div className={`mt-3 ${isVerticalDesktop ? 'md:flex md:gap-4 md:items-start' : ''}`}>
-            <div className={isVerticalDesktop ? 'md:w-1/2' : ''}>
+          <div className="mt-3">
+            <div>
               <div className="mb-2">
                   <span className="font-bold text-base md:text-lg">Attack:</span> <span className="font-mono text-base md:text-lg">{player.attack}</span>
               </div>
@@ -109,9 +107,16 @@ const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys
                   <span className="font-bold text-base md:text-lg">Keys:</span>
                   <span className="font-mono text-base md:text-lg ml-2">{player.keysHeld} / {requiredKeys}</span>
               </div>
+              <div className="mb-2">
+                <span className="font-bold text-base md:text-lg">Shards:</span>
+                <span className="font-mono text-base md:text-lg ml-2 inline-flex items-center gap-1">
+                    <SoulShardIcon className="w-5 h-5" />
+                    {shardsThisRun}
+                </span>
+              </div>
             </div>
             
-            <div className={`hidden md:block ${isVerticalDesktop ? 'md:w-1/2' : ''}`}>
+            <div className="mt-3">
               <h3 className="text-base md:text-lg font-bold text-slate-400 mb-1">Dungeon Theme</h3>
               <p className="text-sm md:text-base text-slate-300 italic break-words">"{theme}"</p>
             </div>

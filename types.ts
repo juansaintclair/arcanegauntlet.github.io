@@ -1,4 +1,5 @@
 
+
 export enum TileType {
   FLOOR,
   WALL,
@@ -14,6 +15,7 @@ export enum GameState {
   GAME_OVER,
   GENERATING,
   LEADERBOARD,
+  ARMORY,
 }
 
 export enum PlayerClass {
@@ -101,4 +103,21 @@ export interface LeaderboardEntry {
     floor: number;
     time: number; // in seconds
     createdAt: number;
+}
+
+// Meta-progression Types
+export type UpgradeType = 'ATTACK' | 'DEFENSE' | 'HP' | 'STEPS';
+
+export interface Upgrade {
+    id: UpgradeType;
+    name: string;
+    description: string;
+    baseCost: number;
+    bonusPerLevel: number;
+    gifUrl: string;
+}
+
+export interface LegacyData {
+    soulShards: number;
+    upgrades: Record<UpgradeType, number>;
 }

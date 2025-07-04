@@ -1,4 +1,5 @@
 
+
 const sounds: { [key: string]: HTMLAudioElement } = {};
 let backgroundMusic: HTMLAudioElement | null = null;
 let bossMusic: HTMLAudioElement | null = null;
@@ -17,6 +18,8 @@ sounds['damage'] = createAudio('https://cdn.pixabay.com/audio/2022/03/10/audio_5
 sounds['stairs'] = createAudio('https://cdn.pixabay.com/audio/2025/06/02/audio_ac4c6f88fe.mp3', false, 0.8);
 sounds['gameOver'] = createAudio('https://cdn.pixabay.com/audio/2022/03/10/audio_890251fc8d.mp3', false, 0.9);
 sounds['levelUp'] = createAudio('https://cdn.pixabay.com/audio/2025/05/30/audio_90e9bff410.mp3', false, 0.9);
+sounds['upgrade'] = createAudio('https://cdn.pixabay.com/audio/2022/10/21/audio_a849cc1412.mp3', false, 0.8);
+
 
 // Normal dungeon music
 backgroundMusic = createAudio('https://cdn.pixabay.com/audio/2025/06/09/audio_2d8de8e2ad.mp3', true, 0.4);

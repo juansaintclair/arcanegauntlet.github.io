@@ -32,6 +32,17 @@ export const MONSTER_GIFS: { [key: string]: string } = {
     default: '/assets/monsters/Slime.gif', // Fallback
 };
 
+/**
+ * Caminhos para os GIFs dos itens permanentes na pasta /assets.
+ * Coloque seus GIFs na pasta /assets/items/ com os nomes correspondentes.
+ */
+export const UPGRADE_GIFS: { [key: string]: string } = {
+    ATTACK: '/assets/items/AstralBlade.gif',
+    DEFENSE: '/assets/items/Defense.gif',
+    HP: '/assets/items/Health.gif',
+    STEPS: '/assets/items/Steps.gif',
+};
+
 
 /**
  * Calculates the map dimensions for a given level.
