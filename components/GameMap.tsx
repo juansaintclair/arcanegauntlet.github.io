@@ -1,5 +1,3 @@
-
-
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { Tile, Player, Monster, TileType, Position, Item } from '../types';
 import { PlayerIcon, MonsterIcon, StairsIcon, ItemIcon, DoorIcon } from './Icons';
@@ -41,7 +39,7 @@ const getTileClass = (tile: Tile): string => {
 const MonsterTooltip: React.FC<{ monster: Monster }> = ({ monster }) => {
   const hpPercentage = (monster.hp / monster.maxHp) * 100;
   return (
-    <div className="absolute z-10 p-3 bg-slate-900 border border-red-500 rounded-lg shadow-lg max-w-xs text-sm pointer-events-none transform -translate-x-1/2 -translate-y-[calc(100%+10px)]">
+    <div className="absolute z-20 p-3 bg-slate-900 border border-red-500 rounded-lg shadow-lg max-w-xs text-sm pointer-events-none transform -translate-x-1/2 -translate-y-[calc(100%+10px)]">
         <div className="flex justify-between items-center mb-2">
             <h4 className="font-bold text-lg text-red-400">{monster.name}</h4>
             <span className="font-mono">{monster.hp}/{monster.maxHp} HP</span>
@@ -50,6 +48,20 @@ const MonsterTooltip: React.FC<{ monster: Monster }> = ({ monster }) => {
           <div className="bg-red-600 h-full rounded-full" style={{ width: `${hpPercentage}%` }}></div>
         </div>
       <p className="italic text-slate-300">{monster.description}</p>
+    </div>
+  );
+};
+
+const HealthBar: React.FC<{ current: number; max: number }> = ({ current, max }) => {
+  const percentage = max > 0 ? Math.max(0, (current / max) * 100) : 0;
+  const barColor = percentage > 60 ? 'bg-green-500' : percentage > 30 ? 'bg-yellow-500' : 'bg-red-600';
+
+  return (
+    <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-900/80 border border-slate-900 rounded-full z-10">
+      <div
+        className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+        style={{ width: `${percentage}%` }}
+      />
     </div>
   );
 };
@@ -148,12 +160,18 @@ const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items,
                 aria-label={`Inspect ${monster.name}`}
                 className="cursor-pointer"
              >
-                <MonsterIcon name={monster.name} spriteType={monster.spriteType} isBoss={monster.isBoss} />
+                <div className="relative w-full h-full flex items-center justify-center">
+                    <MonsterIcon name={monster.name} spriteType={monster.spriteType} isBoss={monster.isBoss} />
+                    <HealthBar current={monster.hp} max={monster.maxHp} />
+                </div>
              </div>
         ))}
         
         <div style={{position: 'absolute', left: player.x * TILE_PIXEL_SIZE, top: player.y * TILE_PIXEL_SIZE, width: TILE_PIXEL_SIZE, height: TILE_PIXEL_SIZE, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-            <PlayerIcon playerClass={player.playerClass} />
+            <div className="relative w-full h-full flex items-center justify-center">
+                <PlayerIcon playerClass={player.playerClass} />
+                <HealthBar current={player.hp} max={player.maxHp} />
+            </div>
         </div>
         
         {/* Render Tooltip */}

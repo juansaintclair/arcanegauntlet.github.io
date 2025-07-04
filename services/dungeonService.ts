@@ -1,6 +1,3 @@
-
-
-
 import { getMapDimensionsForLevel } from '../constants';
 import { Tile, TileType, GameData, Monster, Position, ProceduralMonster, Item, ItemType } from '../types';
 
@@ -49,16 +46,17 @@ const placeMonsters = (rooms: Room[], level: number, generatedMonsters: Procedur
     if (generatedMonsters.length === 0) return monsters;
 
     rooms.slice(1).forEach(room => { // Skip the first room (player start)
-        const numMonsters = Math.floor(Math.random() * (Math.min(level, 3) + 1)); 
+        // Guarantees at least 1 monster and scales the max number with the level.
+        const numMonsters = 1 + Math.floor(Math.random() * (1 + Math.floor(level / 2)));
         for (let i = 0; i < numMonsters; i++) {
             const x = Math.floor(Math.random() * (room.x2 - room.x1 - 1)) + room.x1 + 1;
             const y = Math.floor(Math.random() * (room.y2 - room.y1 - 1)) + room.y1 + 1;
             
             const monsterTemplate = generatedMonsters[Math.floor(Math.random() * generatedMonsters.length)];
             
-            // Smoother difficulty scaling
-            const hp = 10 + Math.floor(level * 3);
-            const attack = 2 + Math.floor(level * 1.2);
+            // Increased monster strength for a better challenge.
+            const hp = 12 + Math.floor(level * 3.5);
+            const attack = 2 + Math.floor(level * 1.8);
 
             monsters.push({
                 id: `m_${x}_${y}_${Date.now()}`,
@@ -77,7 +75,7 @@ const placeMonsters = (rooms: Room[], level: number, generatedMonsters: Procedur
 const placeBoss = (room: Room, level: number, bossTemplate: ProceduralMonster): Monster => {
     // Buffed scaling to make bosses a continued threat.
     const bossHp = 50 + Math.floor(level * 10);
-    const bossAttack = 8 + Math.floor(level * 2);
+    const bossAttack = 8 + Math.floor(level * 2.5);
     
     return {
         id: `boss_${level}`,
@@ -111,7 +109,7 @@ export const generateDungeon = (level: number, generatedMonsters: ProceduralMons
 
     // Standard level generation
     const rooms: Room[] = [];
-    const maxRooms = 10 + Math.floor(level / 2); // Dungeon complexity scales with level
+    const maxRooms = 6 + level; // Dungeon complexity scales with level, starting simpler.
     const minRoomSize = 6;
     const maxRoomSize = 10 + Math.floor(level / 4); // Room size scales slightly
 

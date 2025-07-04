@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction } from './types';
 import { useGameInput } from './hooks/useGameInput';
@@ -189,7 +187,7 @@ const App: React.FC = () => {
             level: 1,
             xp: 0,
             xpToNextLevel: 100,
-            steps: 300,
+            steps: 250,
         };
 
         map = updateFogOfWar(player, map);
@@ -209,10 +207,12 @@ const App: React.FC = () => {
              return;
         }
 
+        const liveMonsterState = monsterState.filter(m => m.hp > 0);
+
         const playerAfterMonsterAttacks = {...playerState};
         const currentMap = newMap || gameDataRef.current!.map;
 
-        const updatedMonsters = monsterState.map(monster => {
+        const updatedMonsters = liveMonsterState.map(monster => {
             const dx = playerState.x - monster.x;
             const dy = playerState.y - monster.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -287,9 +287,9 @@ const App: React.FC = () => {
         const healAmount = Math.floor(newPlayer.maxHp * 0.5);
         newPlayer.hp = Math.min(newPlayer.maxHp, currentPlayer.hp + healAmount);
         
-        // const stepBonus = 100 + Math.floor(dungeonLevel / 5) * 25;
-        newPlayer.steps = 400;
-        addMessage(`You feel renewed as you descend.`);
+        const stepBonus = Math.floor(dungeonLevel / 5) * 25;
+        newPlayer.steps = 250 + stepBonus;
+        addMessage(`Your energy is restored for the new challenge.`);
         
         const xpBonus = 50 * dungeonLevel;
         newPlayer = handleXpGain(newPlayer, xpBonus);
@@ -339,8 +339,7 @@ const App: React.FC = () => {
                     mapForNextTurn = mapCopy;
                 }
             }
-            const livingMonsters = damagedMonsters.filter(m => m.hp > 0);
-            processTurn(playerForNextTurn, livingMonsters, items, mapForNextTurn);
+            processTurn(playerForNextTurn, damagedMonsters, items, mapForNextTurn);
             return;
         }
 
