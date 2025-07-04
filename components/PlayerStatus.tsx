@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Player, PlayerClass } from '../types';
-import { GamepadIcon, SoulShardIcon } from './Icons';
+import { GamepadIcon, SoulShardIcon, MinimapIcon } from './Icons';
 
 interface PlayerStatusProps {
   player: Player;
@@ -11,6 +12,8 @@ interface PlayerStatusProps {
   onToggleMute: () => void;
   isDpadVisible: boolean;
   onToggleDpad: () => void;
+  isMinimapVisible: boolean;
+  onToggleMinimap: () => void;
   elapsedTime: number;
   shardsThisRun: number;
 }
@@ -33,7 +36,7 @@ const formatTime = (seconds: number) => {
     return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
 };
 
-const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys, theme, isMuted, onToggleMute, isDpadVisible, onToggleDpad, elapsedTime, shardsThisRun }) => {
+const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys, theme, isMuted, onToggleMute, isDpadVisible, onToggleDpad, isMinimapVisible, onToggleMinimap, elapsedTime, shardsThisRun }) => {
   const hpPercentage = (player.hp / player.maxHp) * 100;
   const xpPercentage = player.xpToNextLevel > 0 ? (player.xp / player.xpToNextLevel) * 100 : 0;
 
@@ -44,6 +47,13 @@ const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys
             <h2 className="text-xl font-bold text-sky-400 truncate pr-2">{player.name}</h2>
             <div className="flex items-center gap-4">
             <span className="text-lg font-bold">Floor: <span className="text-yellow-400">{level}</span></span>
+            <button
+                onClick={onToggleMinimap}
+                className="text-slate-400 hover:text-white transition-colors"
+                aria-label={isMinimapVisible ? "Hide Minimap" : "Show Minimap"}
+            >
+                <MinimapIcon />
+            </button>
             <button
                 onClick={onToggleDpad}
                 className="text-slate-400 hover:text-white transition-colors"

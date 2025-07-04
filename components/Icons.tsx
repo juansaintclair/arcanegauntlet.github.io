@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { ItemType, PlayerClass } from '../types';
 import { WARRIOR_GIF_URL, GUARDIAN_GIF_URL, MONSTER_GIFS } from '../constants';
@@ -138,5 +137,11 @@ export const SoulShardIcon: React.FC<{ className?: string }> = ({ className }) =
             fill="rgba(255,255,255,0.4)"
             d="M12 5c-3.86 0-7 3.14-7 7s3.14 7 7 7 7-3.14 7-7-3.14-7-7-7zm0 1.5c3.03 0 5.5 2.47 5.5 5.5s-2.47 5.5-5.5 5.5-5.5-2.47-5.5-5.5 2.47-5.5 5.5-5.5z"
         />
+    </svg>
+);
+
+export const MinimapIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9A1 1 0 003 5.84V21l.16-.03L9 18.9l6 2.1 5.64-1.9A1 1 0 0021 18.16V3l-.5-.01zM15 19l-6-2.11V5l6 2.11V19z"/>
     </svg>
 );

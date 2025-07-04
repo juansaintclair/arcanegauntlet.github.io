@@ -1,12 +1,12 @@
 
 
-
 import React, { useState } from 'react';
 import GameMap from './GameMap';
 import PlayerStatus from './PlayerStatus';
 import MessageLog from './MessageLog';
 import Controls from './Controls';
 import { GameData, Direction, Position } from '../types';
+import Minimap from './Minimap';
 
 interface GameContainerProps {
   gameData: GameData;
@@ -17,6 +17,8 @@ interface GameContainerProps {
   onToggleMute: () => void;
   isDpadVisible: boolean;
   onToggleDpad: () => void;
+  isMinimapVisible: boolean;
+  onToggleMinimap: () => void;
   requiredKeys: number;
   elapsedTime: number;
   onDirection: (dir: Direction) => void;
@@ -46,7 +48,9 @@ const GameContainer: React.FC<GameContainerProps> = ({
     isMuted, 
     onToggleMute, 
     isDpadVisible, 
-    onToggleDpad, 
+    onToggleDpad,
+    isMinimapVisible,
+    onToggleMinimap,
     requiredKeys,
     elapsedTime,
     onDirection,
@@ -74,6 +78,11 @@ const GameContainer: React.FC<GameContainerProps> = ({
             onTileClick={onTileClick}
             currentPath={currentPath}
           />
+          <Minimap
+              map={gameData.map}
+              player={gameData.player}
+              isVisible={isMinimapVisible}
+          />
            {isDpadVisible && (
               <Controls 
                   onDirection={onDirection} 
@@ -96,6 +105,8 @@ const GameContainer: React.FC<GameContainerProps> = ({
               onToggleMute={onToggleMute}
               isDpadVisible={isDpadVisible}
               onToggleDpad={onToggleDpad}
+              isMinimapVisible={isMinimapVisible}
+              onToggleMinimap={onToggleMinimap}
               elapsedTime={elapsedTime}
               shardsThisRun={shardsThisRun}
             />
@@ -122,6 +133,8 @@ const GameContainer: React.FC<GameContainerProps> = ({
                     onToggleMute={onToggleMute}
                     isDpadVisible={isDpadVisible}
                     onToggleDpad={onToggleDpad}
+                    isMinimapVisible={isMinimapVisible}
+                    onToggleMinimap={onToggleMinimap}
                     elapsedTime={elapsedTime}
                     shardsThisRun={shardsThisRun}
                 />

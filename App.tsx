@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction, LegacyData, UpgradeType } from './types';
 import { useGameInput } from './hooks/useGameInput';
@@ -9,7 +10,7 @@ import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
 import GameContainer from './components/GameContainer';
 import LeaderboardScreen from './components/LeaderboardScreen';
-import ArmoryScreen from './components/ArmoryScreen.tsx';
+import ArmoryScreen from './components/ArmoryScreen';
 import { audioService } from './services/audioService';
 
 const App: React.FC = () => {
@@ -23,6 +24,7 @@ const App: React.FC = () => {
     // Check for touch support once
     const isMobileDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     const [isDpadVisible, setIsDpadVisible] = useState(isMobileDevice);
+    const [isMinimapVisible, setIsMinimapVisible] = useState(true);
 
     const [dpadPosition, setDpadPosition] = useState<'left' | 'right'>('right');
     const [elapsedTime, setElapsedTime] = useState(0);
@@ -77,6 +79,10 @@ const App: React.FC = () => {
     
     const handleToggleDpad = () => {
         setIsDpadVisible(prev => !prev);
+    };
+
+    const handleToggleMinimap = () => {
+        setIsMinimapVisible(prev => !prev);
     };
 
     const addMessage = useCallback((msg: string) => {
@@ -604,6 +610,8 @@ const App: React.FC = () => {
                         shardsThisRun={shardsThisRun}
                         onTileClick={handleTileClick}
                         currentPath={currentPath}
+                        isMinimapVisible={isMinimapVisible}
+                        onToggleMinimap={handleToggleMinimap}
                     />
                 </main>
             );
