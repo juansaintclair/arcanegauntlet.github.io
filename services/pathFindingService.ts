@@ -1,5 +1,3 @@
-
-
 import { Position, Tile, TileType } from '../types';
 
 interface Node {
