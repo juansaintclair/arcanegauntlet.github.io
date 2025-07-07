@@ -4,7 +4,7 @@ import { useGameInput } from './hooks/useGameInput';
 import { generateDungeon } from './services/dungeonService';
 import { generateLevelContent } from './services/proceduralGenerationService';
 import { legacyService } from './services/legacyService';
-import { pathfindingService } from './services/pathfindingService.ts';
+import { pathfindingService } from './services/pathfindingService';
 import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
 import GameContainer from './components/GameContainer';
