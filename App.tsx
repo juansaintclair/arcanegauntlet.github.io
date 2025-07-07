@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction, LegacyData, UpgradeType, Relic, RelicType, Projectile } from './types';
 import { useGameInput } from './hooks/useGameInput';
