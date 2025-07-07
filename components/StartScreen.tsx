@@ -18,15 +18,16 @@ const ClassCard: React.FC<{
     stats: string;
     onClick: () => void;
     playerClass: PlayerClass;
-}> = ({ title, description, stats, onClick, playerClass }) => (
+    color: string;
+}> = ({ title, description, stats, onClick, playerClass, color }) => (
     <div 
-        className="border-2 border-sky-500/50 p-6 rounded-lg bg-slate-800/50 hover:bg-slate-800/90 hover:border-sky-400 transition-all duration-300 cursor-pointer w-full md:w-96 text-left transform hover:scale-105"
+        className={`border-2 p-6 rounded-lg bg-slate-800/50 hover:bg-slate-800/90 transition-all duration-300 cursor-pointer w-full md:w-80 lg:w-96 text-left transform hover:scale-105 ${color}`}
         onClick={onClick}
     >
         <div className="flex items-center gap-6">
             <PlayerIcon playerClass={playerClass} />
             <div className="flex-grow">
-                <h3 className="text-2xl font-bold text-sky-400 mb-1">{title}</h3>
+                <h3 className={`text-2xl font-bold mb-1 ${color.replace('border', 'text')}`}>{title}</h3>
                 <p className="font-mono text-lg text-yellow-300">{stats}</p>
             </div>
         </div>
@@ -68,13 +69,14 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onShowLeaderboar
           {error && <p className="text-red-400 mt-2">{error}</p>}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-8 mb-8">
+      <div className="flex flex-col lg:flex-row flex-wrap justify-center items-stretch gap-8 mb-8">
         <ClassCard 
             playerClass={PlayerClass.WARRIOR}
             title="Warrior"
             description="A master of offense, carving through foes with raw power."
             stats="Attack: 5 | Defense: 2"
             onClick={() => handleStart(PlayerClass.WARRIOR)}
+            color="border-red-500/50 hover:border-red-400"
         />
         <ClassCard 
             playerClass={PlayerClass.GUARDIAN}
@@ -82,6 +84,15 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onShowLeaderboar
             description="A stalwart defender, weathering blows that would fell lesser adventurers."
             stats="Attack: 2 | Defense: 5"
             onClick={() => handleStart(PlayerClass.GUARDIAN)}
+            color="border-sky-500/50 hover:border-sky-400"
+        />
+         <ClassCard 
+            playerClass={PlayerClass.MAGE}
+            title="Mage"
+            description="A fragile but powerful caster who attacks from a distance."
+            stats="Attack: 4 | Defense: 1"
+            onClick={() => handleStart(PlayerClass.MAGE)}
+            color="border-indigo-500/50 hover:border-indigo-400"
         />
       </div>
 
@@ -92,12 +103,12 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onShowLeaderboar
         >
             How to Play
         </button>
-        {/* <button
+        <button
             onClick={onShowRelicCompendium}
             className="px-8 py-3 bg-yellow-700 text-white font-bold text-xl rounded-lg hover:bg-yellow-600 transition-colors duration-300 transform hover:scale-105"
         >
             Relic Compendium
-        </button> */}
+        </button>
         <button
             onClick={onShowArmory}
             className="px-8 py-3 bg-purple-700 text-white font-bold text-xl rounded-lg hover:bg-purple-600 transition-colors duration-300 transform hover:scale-105"

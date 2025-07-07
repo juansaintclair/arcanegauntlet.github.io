@@ -5,8 +5,8 @@ import GameMap from './GameMap';
 import PlayerStatus from './PlayerStatus';
 import MessageLog from './MessageLog';
 import Controls from './Controls';
-import { GameData, Direction, Position } from '../types';
-import Minimap from "./Minimap"
+import { GameData, Direction, Position, Projectile } from '../types';
+import Minimap from './Minimap';
 
 interface GameContainerProps {
   gameData: GameData;
@@ -27,6 +27,8 @@ interface GameContainerProps {
   shardsThisRun: number;
   onTileClick: (pos: Position) => void;
   currentPath: Position[];
+  projectiles: Projectile[];
+  onProjectileHit: (projectileId: string) => void;
 }
 
 const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
@@ -59,6 +61,8 @@ const GameContainer: React.FC<GameContainerProps> = ({
     shardsThisRun,
     onTileClick,
     currentPath,
+    projectiles,
+    onProjectileHit,
 }) => {
   const [activeTab, setActiveTab] = useState<'status' | 'log'>('status');
   
@@ -75,7 +79,9 @@ const GameContainer: React.FC<GameContainerProps> = ({
             monsters={gameData.monsters}
             stairs={gameData.stairs}
             items={gameData.items}
+            projectiles={projectiles}
             onTileClick={onTileClick}
+            onProjectileHit={onProjectileHit}
             currentPath={currentPath}
           />
           <Minimap

@@ -1,6 +1,7 @@
 
-import React, { useRef, useState, useLayoutEffect } from 'react';
-import { Tile, Player, Monster, TileType, Position, Item } from '../types';
+
+import React, { useRef, useState, useLayoutEffect, useEffect } from 'react';
+import { Tile, Player, Monster, TileType, Position, Item, Projectile } from '../types';
 import { PlayerIcon, MonsterIcon, StairsIcon, ItemIcon, DoorIcon } from './Icons';
 import { TILE_PIXEL_SIZE } from '../constants';
 
@@ -10,7 +11,9 @@ interface GameMapProps {
   monsters: Monster[];
   stairs: Position;
   items: Item[];
+  projectiles: Projectile[];
   onTileClick: (pos: Position) => void;
+  onProjectileHit: (projectileId: string) => void;
   currentPath: Position[];
 }
 
@@ -48,7 +51,38 @@ const HealthBar: React.FC<{ current: number; max: number; color: string }> = ({ 
     );
 };
 
-const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items, onTileClick, currentPath }) => {
+const ProjectileVisual: React.FC<{ projectile: Projectile, onHit: (id: string) => void }> = ({ projectile, onHit }) => {
+    const [position, setPosition] = useState({ 
+        left: projectile.start.x * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2,
+        top: projectile.start.y * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2,
+    });
+    const hasFired = useRef(false);
+
+    useEffect(() => {
+        // This effect runs once to fire the projectile
+        if (!hasFired.current) {
+            setPosition({
+                left: projectile.end.x * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2,
+                top: projectile.end.y * TILE_PIXEL_SIZE + TILE_PIXEL_SIZE / 2,
+            });
+            hasFired.current = true;
+        }
+    }, [projectile.end.x, projectile.end.y]);
+
+    return (
+        <div
+            className="absolute w-4 h-4 bg-cyan-400 rounded-full transition-all duration-200 ease-linear pointer-events-none"
+            style={{
+                ...position,
+                transform: 'translate(-50%, -50%)',
+                boxShadow: '0 0 8px 2px #22d3ee, 0 0 4px 1px #67e8f9',
+            }}
+            onTransitionEnd={() => onHit(projectile.id)}
+        />
+    );
+};
+
+const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items, projectiles, onTileClick, onProjectileHit, currentPath }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
@@ -167,6 +201,10 @@ const GameMap: React.FC<GameMapProps> = ({ map, player, monsters, stairs, items,
             <HealthBar current={player.hp} max={player.maxHp} color="bg-green-500" />
         </div>
 
+        {/* Render Projectiles */}
+        {projectiles.map(p => (
+            <ProjectileVisual key={p.id} projectile={p} onHit={onProjectileHit} />
+        ))}
       </div>
     </div>
   );

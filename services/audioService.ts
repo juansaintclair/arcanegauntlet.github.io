@@ -19,6 +19,7 @@ sounds['stairs'] = createAudio('https://cdn.pixabay.com/audio/2025/06/02/audio_a
 sounds['gameOver'] = createAudio('https://cdn.pixabay.com/audio/2022/03/10/audio_890251fc8d.mp3', false, 0.9);
 sounds['levelUp'] = createAudio('https://cdn.pixabay.com/audio/2025/05/30/audio_90e9bff410.mp3', false, 0.9);
 sounds['upgrade'] = createAudio('https://cdn.pixabay.com/audio/2022/10/21/audio_a849cc1412.mp3', false, 0.8);
+sounds['fireball'] = createAudio('https://cdn.pixabay.com/audio/2022/03/15/audio_784d72b423.mp3', false, 0.7);
 
 
 // Normal dungeon music

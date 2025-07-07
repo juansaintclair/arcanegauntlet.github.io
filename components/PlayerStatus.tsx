@@ -37,6 +37,15 @@ const formatTime = (seconds: number) => {
     return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
 };
 
+const getClassName = (playerClass: PlayerClass) => {
+    switch (playerClass) {
+        case PlayerClass.WARRIOR: return 'Warrior';
+        case PlayerClass.GUARDIAN: return 'Guardian';
+        case PlayerClass.MAGE: return 'Mage';
+        default: return 'Adventurer';
+    }
+};
+
 const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys, theme, isMuted, onToggleMute, isDpadVisible, onToggleDpad, isMinimapVisible, onToggleMinimap, elapsedTime, shardsThisRun }) => {
   const hpPercentage = (player.hp / player.maxHp) * 100;
   const xpPercentage = player.xpToNextLevel > 0 ? (player.xp / player.xpToNextLevel) * 100 : 0;
@@ -72,7 +81,7 @@ const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys
             </div>
         </div>
          <div className="flex justify-between items-center mb-3 text-slate-400">
-             <span className="font-mono">Lvl {player.level} {player.playerClass === PlayerClass.WARRIOR ? 'Warrior' : 'Guardian'}</span>
+             <span className="font-mono">Lvl {player.level} {getClassName(player.playerClass)}</span>
              <span className="font-mono">Time: {formatTime(elapsedTime)}</span>
         </div>
       </div>

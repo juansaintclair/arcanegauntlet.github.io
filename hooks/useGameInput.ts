@@ -1,9 +1,11 @@
 
+
 import { useEffect } from 'react';
 import { Direction } from '../types';
 
 interface Actions {
     onDirection: (dir: Direction) => void;
+    onQuickFire: () => void;
 }
 
 export const useGameInput = (actions: Actions, enabled: boolean) => {
@@ -29,6 +31,10 @@ export const useGameInput = (actions: Actions, enabled: boolean) => {
                 case 'd':
                     direction = 'RIGHT';
                     break;
+                case 't':
+                case ' ': // Added Spacebar as an alternative
+                    actions.onQuickFire();
+                    break;
                 default:
                     return;
             }
@@ -43,5 +49,5 @@ export const useGameInput = (actions: Actions, enabled: boolean) => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [actions.onDirection, enabled]);
+    }, [actions, enabled]);
 };

@@ -1,18 +1,19 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction, LegacyData, UpgradeType, Relic, RelicType } from './types';
+
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { GameState, GameData, Player, Monster, TileType, Position, ItemType, PlayerClass, Item, Tile, Direction, LegacyData, UpgradeType, Relic, RelicType, Projectile } from './types';
 import { useGameInput } from './hooks/useGameInput';
 import { generateDungeon } from './services/dungeonService';
 import { generateLevelContent } from './services/proceduralGenerationService';
 import { legacyService } from './services/legacyService';
-import { pathfindingService } from './services/pathFindingService';
+import { pathfindingService } from './services/pathfindingService';
 import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
 import GameContainer from './components/GameContainer';
 import LeaderboardScreen from './components/LeaderboardScreen';
 import ArmoryScreen from './components/ArmoryScreen';
 import RelicCompendiumScreen from './components/RelicCompendiumScreen';
-import HowToPlayScreen from "./components/HowToPlayScreen";
+import HowToPlayScreen from './components/HowToPlayScreen';
 import { audioService } from './services/audioService';
 import { RELICS_CONFIG } from './constants';
 
@@ -37,9 +38,10 @@ const App: React.FC = () => {
     const [legacyData, setLegacyData] = useState<LegacyData | null>(null);
     const [shardsThisRun, setShardsThisRun] = useState(0);
 
-    // Pathfinding state
+    // Gameplay state
     const [currentPath, setCurrentPath] = useState<Position[]>([]);
     const [isProcessingTurn, setIsProcessingTurn] = useState(false);
+    const [projectiles, setProjectiles] = useState<Projectile[]>([]);
 
     const requiredKeys = gameData ? 1 + Math.floor((dungeonLevel - 1) / 5) : 1;
 
@@ -117,6 +119,7 @@ const App: React.FC = () => {
     
     const handleGameOver = useCallback((message: string) => {
         setCurrentPath([]);
+        setProjectiles([]);
         audioService.play('gameOver');
         setGameState(GameState.GAME_OVER);
         addMessage(message);
@@ -152,9 +155,12 @@ const App: React.FC = () => {
             if (updatedPlayer.playerClass === PlayerClass.WARRIOR) {
                 updatedPlayer.attack += 2;
                 updatedPlayer.defense += 1;
-            } else {
+            } else if (updatedPlayer.playerClass === PlayerClass.GUARDIAN) {
                 updatedPlayer.attack += 1;
                 updatedPlayer.defense += 2;
+            } else { // Mage
+                updatedPlayer.attack += 2; // Mages get stronger attack
+                // No defense increase for mages
             }
             
             const hpIncrease = 10;
@@ -169,11 +175,10 @@ const App: React.FC = () => {
     }, [addMessage]);
 
     const updateFogOfWar = useCallback((center: Position, map: GameData['map']) => {
-        const visionRadius = 6;
+        const visionRadius = 8;
         const newMap = map.map(row => row.map(tile => ({...tile, visible: false})));
         const MAP_HEIGHT = newMap.length;
         const MAP_WIDTH = newMap[0]?.length || 0;
-
 
         for (let y = 0; y < MAP_HEIGHT; y++) {
             for (let x = 0; x < MAP_WIDTH; x++) {
@@ -183,10 +188,10 @@ const App: React.FC = () => {
 
                 if (distance < visionRadius) {
                     let isBlocked = false;
-                    for (let i = 0; i < distance; i++) {
-                        const checkX = Math.round(center.x + (dx/distance) * i);
-                        const checkY = Math.round(center.y + (dy/distance) * i);
-                        if(newMap[checkY]?.[checkX]?.type === TileType.WALL) {
+                    const line = pathfindingService.getLine(center, {x, y});
+                    for (const point of line) {
+                        if (point.x === x && point.y === y) continue;
+                        if(newMap[point.y]?.[point.x]?.type === TileType.WALL) {
                             isBlocked = true;
                             break;
                         }
@@ -210,13 +215,19 @@ const App: React.FC = () => {
         setElapsedTime(0);
         setShardsThisRun(0);
         setCurrentPath([]);
+        setProjectiles([]);
         setIsProcessingTurn(false);
 
         const legacyBonuses = legacyService.getUpgradeBonuses(legacyData.upgrades);
 
-        const baseStats = playerClass === PlayerClass.WARRIOR
-            ? { attack: 5, defense: 2, hp: 80 }
-            : { attack: 2, defense: 5, hp: 120 };
+        let baseStats;
+        if (playerClass === PlayerClass.WARRIOR) {
+            baseStats = { attack: 5, defense: 2, hp: 80 };
+        } else if (playerClass === PlayerClass.GUARDIAN) {
+            baseStats = { attack: 2, defense: 5, hp: 120 };
+        } else { // MAGE
+            baseStats = { attack: 4, defense: 1, hp: 70 };
+        }
 
         const initialStats = {
             attack: baseStats.attack + legacyBonuses.attack,
@@ -290,17 +301,12 @@ const App: React.FC = () => {
 
             if (distance < 8) {
                 if (distance >= 1.5) { // Monster moves if not adjacent
-                    const nextPosOptions = [];
-                    if (Math.sign(dx) !== 0) nextPosOptions.push({x: monster.x + Math.sign(dx), y: monster.y});
-                    if (Math.sign(dy) !== 0) nextPosOptions.push({x: monster.x, y: monster.y + Math.sign(dy)});
-                    nextPosOptions.sort(() => Math.random() - 0.5);
-
-                    for (const pos of nextPosOptions) {
-                        const isPlayerAtPos = playerState.x === pos.x && playerState.y === pos.y;
-                        const isMonsterAtPos = monsterState.some(m => m.id !== monster.id && m.x === pos.x && m.y === pos.y);
-                        if (currentMap[pos.y]?.[pos.x]?.type !== TileType.WALL && !isPlayerAtPos && !isMonsterAtPos) {
-                            newMonsterPos = pos;
-                            break;
+                    const path = pathfindingService.findPath(currentMap, monster, playerState);
+                    if (path.length > 0) {
+                        const nextStep = path[0];
+                        const isMonsterAtPos = monsterState.some(m => m.id !== monster.id && m.x === nextStep.x && m.y === nextStep.y);
+                        if (!isMonsterAtPos) {
+                           newMonsterPos = nextStep;
                         }
                     }
                 }
@@ -368,6 +374,7 @@ const App: React.FC = () => {
         const isBossLevel = nextLevel % 5 === 0;
 
         setCurrentPath([]);
+        setProjectiles([]);
         setDungeonLevel(nextLevel);
         setGameState(GameState.GENERATING);
         addMessage(`You descend to floor ${nextLevel}...`);
@@ -446,6 +453,13 @@ const App: React.FC = () => {
         if (monsterAtNewPos) {
             setCurrentPath([]); // Stop pathfinding to engage in combat
             
+            // Mages cannot attack in melee
+            if (playerForNextTurn.playerClass === PlayerClass.MAGE) {
+                addMessage("You are too close to attack. Reposition yourself!");
+                setIsProcessingTurn(false);
+                return;
+            }
+
             const hasVampiricFang = playerForNextTurn.relics.some(r => r.id === 'VAMPIRIC_FANG');
             const playerDamage = Math.max(1, playerForNextTurn.attack - 0);
             const newMonsterHp = monsterAtNewPos.hp - playerDamage;
@@ -546,6 +560,91 @@ const App: React.FC = () => {
         playerForNextTurn = handleRelicStepEffects(playerForNextTurn);
         processTurn(playerForNextTurn, monsters, newItems);
     }, [gameState, processTurn, advanceLevel, addMessage, handleXpGain, requiredKeys, dungeonLevel, onMonsterDefeat, handleRelicStepEffects, isProcessingTurn]);
+    
+    const hasLineOfSight = useCallback((start: Position, end: Position, map: Tile[][]): boolean => {
+        const line = pathfindingService.getLine(start, end);
+        for (const point of line) {
+            if (point.x === end.x && point.y === end.y) continue;
+            if (map[point.y]?.[point.x]?.type === TileType.WALL) {
+                return false;
+            }
+        }
+        return true;
+    }, []);
+
+    const fireProjectile = useCallback((targetMonster: Monster) => {
+        if (!gameDataRef.current || isProcessingTurn) return;
+        const { player, monsters, items } = gameDataRef.current;
+
+        setIsProcessingTurn(true);
+        setCurrentPath([]);
+
+        const newProjectile: Projectile = {
+            id: `proj_${Date.now()}`,
+            start: { x: player.x, y: player.y },
+            end: { x: targetMonster.x, y: targetMonster.y },
+            targetId: targetMonster.id,
+        };
+        audioService.play('fireball');
+        addMessage("You launch a magic bolt!");
+        setProjectiles(prev => [...prev, newProjectile]);
+
+        const playerForNextTurn = { ...player, steps: player.steps - 1 };
+        processTurn(playerForNextTurn, monsters, items);
+    }, [isProcessingTurn, addMessage, processTurn]);
+
+    const handleProjectileHit = useCallback((projectileId: string) => {
+        const projectile = projectiles.find(p => p.id === projectileId);
+        if (!projectile || !gameDataRef.current) return;
+        
+        let { player, monsters, items } = gameDataRef.current;
+        const targetMonster = monsters.find(m => m.id === projectile.targetId);
+
+        if (targetMonster) {
+            const hasVampiricFang = player.relics.some(r => r.id === 'VAMPIRIC_FANG');
+            const playerDamage = Math.max(1, player.attack - 0);
+            const newMonsterHp = targetMonster.hp - playerDamage;
+            addMessage(`Your magic bolt hits the ${targetMonster.name} for ${playerDamage} damage.`);
+            audioService.play('damage');
+
+            if (hasVampiricFang) {
+                player.hp = Math.min(player.maxHp, player.hp + 1);
+                addMessage(`[Vampiric Fang] You drain 1 HP.`);
+            }
+
+            const damagedMonsters = monsters.map(m => m.id === targetMonster.id ? {...m, hp: newMonsterHp} : m);
+            let mapForNextTurn = gameDataRef.current.map;
+
+            if (newMonsterHp <= 0) {
+                addMessage(`You defeated the ${targetMonster.name}!`);
+                const { updatedPlayer, shardsGained } = onMonsterDefeat(player, targetMonster);
+                player = updatedPlayer;
+                addMessage(`You collected ${shardsGained} Soul Shards.`);
+                setShardsThisRun(prev => prev + shardsGained);
+
+                 if (targetMonster.isBoss) {
+                    addMessage("The way forward is revealed!");
+                    const { map, stairs } = gameDataRef.current!;
+                    const mapCopy = map.map(row => row.map(tile => ({...tile})));
+                    mapCopy[stairs.y][stairs.x].type = TileType.STAIRS;
+                    mapForNextTurn = mapCopy;
+                }
+            }
+
+            const livingMonsters = damagedMonsters.filter(m => m.hp > 0);
+            
+            // Update game state without processing monster turn, as that happened when the projectile was fired
+            const mapAfterFog = updateFogOfWar(player, mapForNextTurn);
+            setGameData({ ...gameDataRef.current, player, monsters: livingMonsters, map: mapAfterFog });
+             if (player.hp <= 0) {
+                handleGameOver("You have been defeated.");
+            }
+        }
+        
+        // Remove projectile after it hits
+        setProjectiles(prev => prev.filter(p => p.id !== projectileId));
+
+    }, [projectiles, addMessage, onMonsterDefeat, updateFogOfWar, handleGameOver]);
 
     const handleDirectionalControl = useCallback((dir: Direction) => {
         if (isProcessingTurn) return;
@@ -560,16 +659,22 @@ const App: React.FC = () => {
     
     const handleTileClick = useCallback((pos: Position) => {
         if (!gameDataRef.current || gameState !== GameState.PLAYING || isProcessingTurn) return;
-        const { player, map, monsters, items, stairs } = gameDataRef.current;
+        const { player, map, monsters } = gameDataRef.current;
 
         if (map[pos.y]?.[pos.x]?.type === TileType.WALL) return;
         
-        // Prioritize clicking on interactive elements
         const targetMonster = monsters.find(m => m.x === pos.x && m.y === pos.y);
-        const targetItem = items.find(i => i.position.x === pos.x && i.position.y === pos.y);
-        const isStairs = stairs.x === pos.x && stairs.y === pos.y;
-        const isDoor = map[pos.y]?.[pos.x]?.type === TileType.LOCKED_DOOR;
 
+        if (player.playerClass === PlayerClass.MAGE && targetMonster) {
+            if (hasLineOfSight(player, targetMonster, map)) {
+                 fireProjectile(targetMonster);
+            } else {
+                addMessage("No clear shot!");
+            }
+            return;
+        }
+
+        // For non-mages or clicking on empty tiles
         if (targetMonster) {
             const dx = targetMonster.x - player.x;
             const dy = targetMonster.y - player.y;
@@ -578,45 +683,13 @@ const App: React.FC = () => {
             if (distance < 1.5) {
                 handlePlayerMove(dx, dy);
                 return;
-            } else {
-                const targetTiles: Position[] = [];
-                const directions = [
-                    {x: 0, y: -1}, {x: 0, y: 1}, {x: -1, y: 0}, {x: 1, y: 0},
-                    {x: -1, y: -1}, {x: -1, y: 1}, {x: 1, y: -1}, {x: 1, y: 1}
-                ];
-                
-                for (const dir of directions) {
-                    const checkPos = { x: targetMonster.x + dir.x, y: targetMonster.y + dir.y };
-                    const tile = map[checkPos.y]?.[checkPos.x];
-                    
-                    if (tile && tile.type !== TileType.WALL && !(player.x === checkPos.x && player.y === checkPos.y)) {
-                        const isBlockedByOtherMonster = monsters.some(m => m.id !== targetMonster.id && m.x === checkPos.x && m.y === checkPos.y);
-                        if (!isBlockedByOtherMonster) {
-                             targetTiles.push(checkPos);
-                        }
-                    }
-                }
-                
-                if (targetTiles.length === 0) return;
-
-                targetTiles.sort((a, b) => {
-                    const distA = Math.abs(a.x - player.x) + Math.abs(a.y - player.y);
-                    const distB = Math.abs(b.x - player.x) + Math.abs(b.y - player.y);
-                    return distA - distB;
-                });
-                
-                const bestTargetTile = targetTiles[0];
-                const path = pathfindingService.findPath(map, player, bestTargetTile);
-                setCurrentPath(path);
-                return;
             }
         }
         
-        // If not attacking, pathfind to the tile
         const path = pathfindingService.findPath(map, player, pos);
         setCurrentPath(path);
         
-    }, [gameState, handlePlayerMove, isProcessingTurn]);
+    }, [gameState, handlePlayerMove, isProcessingTurn, hasLineOfSight, addMessage, fireProjectile]);
 
     useEffect(() => {
         if (gameState !== GameState.PLAYING || currentPath.length === 0 || !gameData || isProcessingTurn) {
@@ -664,9 +737,38 @@ const App: React.FC = () => {
             legacyService.saveLegacyData(newLegacyData);
         }
     }, [legacyData]);
+    
+    const handleQuickFire = useCallback(() => {
+        if (!gameDataRef.current || isProcessingTurn || gameDataRef.current.player.playerClass !== PlayerClass.MAGE) return;
+
+        const { player, monsters, map } = gameDataRef.current;
+        
+        const visibleTargets = monsters.filter(m => hasLineOfSight(player, m, map));
+
+        if (visibleTargets.length === 0) {
+            addMessage("No targets in line of sight.");
+            return;
+        }
+
+        // Find the closest target
+        let closestTarget = visibleTargets[0];
+        let minDistance = Infinity;
+
+        for (const target of visibleTargets) {
+            const distance = Math.sqrt(Math.pow(player.x - target.x, 2) + Math.pow(player.y - target.y, 2));
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestTarget = target;
+            }
+        }
+        
+        fireProjectile(closestTarget);
+
+    }, [isProcessingTurn, hasLineOfSight, addMessage, fireProjectile]);
 
     useGameInput({
         onDirection: handleDirectionalControl,
+        onQuickFire: handleQuickFire,
     }, gameState === GameState.PLAYING);
     
     const restartGame = () => {
@@ -717,6 +819,8 @@ const App: React.FC = () => {
                         shardsThisRun={shardsThisRun}
                         onTileClick={handleTileClick}
                         currentPath={currentPath}
+                        projectiles={projectiles}
+                        onProjectileHit={handleProjectileHit}
                         isMinimapVisible={isMinimapVisible}
                         onToggleMinimap={handleToggleMinimap}
                     />

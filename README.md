@@ -8,7 +8,10 @@ The goal is to descend as deep into the dungeon as you can. Each floor is filled
 
 ### Controls
 
-- **Desktop:** Use the **Arrow Keys** or **WASD** to move and attack.
+- **Desktop:**
+  - **Movement:** Use the **Arrow Keys** or **WASD** keys.
+  - **Melee Attack (Warrior/Guardian):** Move into an adjacent enemy.
+  - **Ranged Attack (Mage):** Press **'T' or Spacebar** to automatically fire at the nearest visible enemy.
 - **Mobile:**
   - Use the on-screen **D-Pad** for precise, single-step movements.
   - **Tap-to-Move:** Tap any explored tile to automatically walk there. The character will move one step at a time, and the path will be shown on screen.
@@ -22,10 +25,11 @@ Every floor of the dungeon is generated from scratch when you enter it. The layo
 
 ### Classes
 
-You can choose one of two classes at the start of your run:
+You can choose one of three classes at the start of your run:
 
 - **Warrior:** A master of offense. Starts with higher Attack (5) and lower Defense (2).
 - **Guardian:** A stalwart defender. Starts with higher Defense (5) and lower Attack (2).
+- **Mage:** A fragile but powerful caster who attacks from a distance. Starts with high Attack (4) and low HP/Defense.
 
 ### Legacy System: The Armory
 

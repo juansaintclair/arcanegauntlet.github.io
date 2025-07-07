@@ -1,26 +1,33 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { ItemType, PlayerClass } from '../types';
-import { WARRIOR_GIF_URL, GUARDIAN_GIF_URL, MONSTER_GIFS } from '../constants';
+import { WARRIOR_GIF_URL, GUARDIAN_GIF_URL, MAGE_GIF_URL, MONSTER_GIFS } from '../constants';
 
 const SPRITE_CLASS = 'w-16 h-16 object-contain flex-shrink-0';
 
-// O ícone do jogador agora exibe um GIF diferente com base na classe escolhida.
-// Os GIFs podem ser alterados no arquivo `constants.ts`.
-// Adicionado fallback para caso o GIF não carregue.
+const getPlayerClassDetails = (playerClass: PlayerClass) => {
+    switch (playerClass) {
+        case PlayerClass.WARRIOR:
+            return { gifUrl: WARRIOR_GIF_URL, altText: 'Warrior', initial: 'W', bgColor: 'bg-red-600' };
+        case PlayerClass.GUARDIAN:
+            return { gifUrl: GUARDIAN_GIF_URL, altText: 'Guardian', initial: 'G', bgColor: 'bg-sky-600' };
+        case PlayerClass.MAGE:
+            return { gifUrl: MAGE_GIF_URL, altText: 'Mage', initial: 'M', bgColor: 'bg-indigo-600' };
+        default:
+            return { gifUrl: WARRIOR_GIF_URL, altText: 'Character', initial: '?', bgColor: 'bg-slate-600' };
+    }
+};
+
 export const PlayerIcon: React.FC<{ playerClass: PlayerClass }> = ({ playerClass }) => {
     const [imageError, setImageError] = useState(false);
-    const isWarrior = playerClass === PlayerClass.WARRIOR;
-    const gifUrl = isWarrior ? WARRIOR_GIF_URL : GUARDIAN_GIF_URL;
-    const altText = isWarrior ? 'Warrior' : 'Guardian';
+    const { gifUrl, altText, initial, bgColor } = getPlayerClassDetails(playerClass);
 
     useEffect(() => {
         setImageError(false);
     }, [gifUrl]);
 
     if (imageError) {
-        const initial = isWarrior ? 'W' : 'G';
-        const bgColor = isWarrior ? 'bg-red-600' : 'bg-sky-600';
         return (
             <div className={`w-16 h-16 rounded-lg flex items-center justify-center text-4xl font-bold text-white flex-shrink-0 ${bgColor}`} aria-label={altText}>
                 {initial}
@@ -76,7 +83,7 @@ const itemColorMap: { [key in ItemType]: string } = {
     [ItemType.DEFENSE_BOOST]: 'text-sky-400',
     [ItemType.KEY]: 'text-yellow-400',
     [ItemType.STEP_BOOST]: 'text-lime-400',
-    [ItemType.RELIC]: 'text-purple-400',
+    [ItemType.RELIC]: 'text-fuchsia-400',
 };
 
 export const ItemIcon: React.FC<{ symbol: string; type: ItemType }> = ({ symbol, type }) => {

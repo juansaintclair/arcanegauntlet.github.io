@@ -23,6 +23,7 @@ export enum GameState {
 export enum PlayerClass {
     WARRIOR,
     GUARDIAN,
+    MAGE,
 }
 
 export enum ItemType {
@@ -80,6 +81,13 @@ export interface Monster extends Position {
   spriteType: string;
   description: string;
   isBoss?: boolean;
+}
+
+export interface Projectile {
+    id: string;
+    start: Position;
+    end: Position;
+    targetId: string;
 }
 
 export interface GameData {

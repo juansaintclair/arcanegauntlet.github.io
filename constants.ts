@@ -13,6 +13,7 @@ export const TILE_PIXEL_SIZE = 64; // Visual size of a tile in pixels
  */
 export const WARRIOR_GIF_URL = "/assets/player/Warrior.gif";
 export const GUARDIAN_GIF_URL = '/assets/player/Guardian.gif';
+export const MAGE_GIF_URL = '/assets/player/Mage.gif';
 
 
 /**
