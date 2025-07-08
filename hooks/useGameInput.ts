@@ -1,5 +1,4 @@
 
-
 import { useEffect } from 'react';
 import { Direction } from '../types';
 
@@ -8,11 +7,21 @@ interface Actions {
     onQuickFire: () => void;
 }
 
+const SINGLE_ACTION_KEYS = ['t', ' '];
+
 export const useGameInput = (actions: Actions, enabled: boolean) => {
     useEffect(() => {
         if (!enabled) return;
 
         const handleKeyDown = (event: KeyboardEvent) => {
+            // For single-action keys, we want to ignore the built-in key repeat.
+            if (SINGLE_ACTION_KEYS.includes(event.key.toLowerCase())) {
+                if (event.repeat) {
+                    return; // Ignore held-down key repeats for these specific keys.
+                }
+            }
+            // For movement keys, the above block is skipped, so holding them down will fire events continuously.
+
             let direction: Direction | null = null;
             switch (event.key) {
                 case 'ArrowUp':
@@ -32,7 +41,7 @@ export const useGameInput = (actions: Actions, enabled: boolean) => {
                     direction = 'RIGHT';
                     break;
                 case 't':
-                case ' ': // Added Spacebar as an alternative
+                case ' ':
                     actions.onQuickFire();
                     break;
                 default:

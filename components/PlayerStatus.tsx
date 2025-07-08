@@ -1,7 +1,6 @@
 
-
 import React from 'react';
-import { Player, PlayerClass } from '../types';
+import { Player, PlayerClass, Relic } from '../types';
 import { GamepadIcon, SoulShardIcon, MinimapIcon } from './Icons';
 
 interface PlayerStatusProps {
@@ -45,6 +44,26 @@ const getClassName = (playerClass: PlayerClass) => {
         default: return 'Adventurer';
     }
 };
+
+const RelicDisplay: React.FC<{ relic: Relic }> = ({ relic }) => (
+    <div className="relative group flex items-center cursor-default">
+        {/* The visible part */}
+        <span className="mr-2 text-base">{relic.symbol}</span>
+        <span className="font-bold">{relic.name}</span>
+
+        {/* The tooltip that appears on hover */}
+        <div 
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3
+                       bg-slate-800 border-2 border-sky-400/50 rounded-lg shadow-2xl
+                       opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200
+                       pointer-events-none z-10 origin-bottom"
+        >
+            <h4 className="font-bold text-sky-300 text-lg mb-1">{relic.name}</h4>
+            <p className="text-slate-300 text-base font-normal leading-snug">{relic.description}</p>
+        </div>
+    </div>
+);
+
 
 const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys, theme, isMuted, onToggleMute, isDpadVisible, onToggleDpad, isMinimapVisible, onToggleMinimap, elapsedTime, shardsThisRun }) => {
   const hpPercentage = (player.hp / player.maxHp) * 100;
@@ -146,12 +165,9 @@ const PlayerStatus: React.FC<PlayerStatusProps> = ({ player, level, requiredKeys
               {player.relics.length === 0 ? (
                 <p className="text-sm text-slate-500 italic">None yet...</p>
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 text-sm">
                   {player.relics.map(relic => (
-                    <div key={relic.id} className="text-left text-sm" title={relic.description}>
-                      <span className="mr-2 text-base">{relic.symbol}</span>
-                      <span className="font-bold">{relic.name}</span>
-                    </div>
+                    <RelicDisplay key={relic.id} relic={relic} />
                   ))}
                 </div>
               )}
